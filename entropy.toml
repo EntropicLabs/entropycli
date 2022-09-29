@@ -1,0 +1,7 @@
+[[network]]
+name = "localterra"
+rpc = "http://localhost:26657"
+chain_id = "localterra"
+lcd = "http://localhost:1317"
+fcd = "http://localhost:3060"
+default_wallet = "test1"
