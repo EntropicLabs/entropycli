@@ -1,0 +1,17 @@
+{
+  "networks": {
+    "localterra": {
+      "lcd_url": "http://localhost:1317",
+      "chain_id": "localterra",
+      "account_info": {
+        "derivation_path": "m/44'/330'/0'/0/0",
+        "chain_prefix": "terra"
+      }
+    }
+  },
+  "default_network": "localterra",
+  "default_wallet": "<WALLET_NAME>",
+  "wallets": {
+    "<WALLET_NAME>": "<WALLET_MNEMONIC>"
+  }
+}

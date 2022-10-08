@@ -16,7 +16,7 @@ pub enum Command {
     Init(InitCommandOptions),
 }
 
-#[derive(Debug, Parser)]
+#[derive(Debug, Parser, Clone)]
 pub struct InitCommandOptions {
     /// Optional path to the configuration file
     #[clap(short, long)]
