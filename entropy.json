@@ -6,12 +6,17 @@
       "account_info": {
         "derivation_path": "m/44'/330'/0'/0/0",
         "chain_prefix": "terra"
+      },
+      "gas_info": {
+        "denom": "uluna",
+        "gas_price": 5.0,
+        "gas_adjustment": 1.25
       }
     }
   },
   "default_network": "localterra",
-  "default_wallet": "<WALLET_NAME>",
+  "default_wallet": "test1",
   "wallets": {
-    "<WALLET_NAME>": "<WALLET_MNEMONIC>"
+    "test1": "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
   }
 }

@@ -11,19 +11,19 @@ impl Network {
         reqwest::get(&url).await
     }
 
-    pub fn post_blocking(&self, path: &str, body: &str) -> Result<reqwest::blocking::Response, reqwest::Error> {
+    pub fn post_blocking(&self, path: &str, body: &serde_json::Value) -> Result<reqwest::blocking::Response, reqwest::Error> {
         let url = format!("{}/{}", self.lcd_url, path);
         reqwest::blocking::Client::new()
             .post(&url)
-            .body(body.to_string())
+            .json(&body)
             .send()
     }
 
-    pub async fn post(&self, path: &str, body: &str) -> Result<reqwest::Response, reqwest::Error> {
+    pub async fn post(&self, path: &str, body: &serde_json::Value) -> Result<reqwest::Response, reqwest::Error> {
         let url = format!("{}/{}", self.lcd_url, path);
         reqwest::Client::new()
             .post(&url)
-            .body(body.to_string())
+            .json(&body)
             .send()
             .await
     }

@@ -2,19 +2,23 @@ use std::{collections::HashMap, io::Write, path::PathBuf, str::FromStr};
 
 use crate::{
     args::InitCommandOptions,
-    config::{Config, NetworkInfo},
-    cosmos::{network::{Network, NetworkAccountInfo}, wallet::Wallet},
+    config::Config,
+    cosmos::{
+        network::{Network, NetworkAccountInfo, NetworkGasInfo},
+        wallet::Wallet,
+    },
     wasm_fetch::{download_file, fetch_release_url},
 };
 
-use cosmrs::cosmwasm::{self, MsgStoreCode, AccessConfig, AccessType};
+use cosmrs::{cosmwasm::{AccessConfig, AccessType, MsgStoreCode, MsgInstantiateContract, MsgStoreCodeResponse}};
 
 use cosmrs::tendermint::chain::Id as ChainId;
 
 use bip32::DerivationPath;
 use colored::*;
+use serde_json::json;
 
-pub fn init(options: InitCommandOptions) {
+pub async fn init(options: InitCommandOptions) {
     println!("Entropy CLI: Initializing new beacon.");
 
     prompt_config_creation(options.clone());
@@ -31,7 +35,7 @@ pub fn init(options: InitCommandOptions) {
         std::io::stdin().read_line(&mut input).unwrap();
         match input.trim() {
             "y" | "Y" | "yes" | "Yes" | "" => {
-                deploy_beacon(options, config);
+                deploy_beacon(options, config).await;
                 return;
             }
             "n" | "N" | "no" | "No" => {
@@ -46,7 +50,7 @@ pub fn init(options: InitCommandOptions) {
     }
 }
 
-pub fn deploy_beacon(options: InitCommandOptions, config: Config) {
+pub async fn deploy_beacon(options: InitCommandOptions, config: Config) {
     let network = match options.network {
         Some(network) => network,
         None => match config.default_network {
@@ -101,7 +105,7 @@ pub fn deploy_beacon(options: InitCommandOptions, config: Config) {
         .wallets
         .as_ref()
         .and_then(|wallets| wallets.get(&wallet_name));
-    
+
     let wallet = match wallet {
         Some(Some(mnemonic)) => Wallet::new(mnemonic.clone(), network.clone()),
         Some(None) => {
@@ -110,13 +114,14 @@ pub fn deploy_beacon(options: InitCommandOptions, config: Config) {
                     "{} {} {}",
                     "[E005] Wallet".red(),
                     wallet_name.red(),
-                    "mnemonic not found in config, and no MNEMONIC environment variable found.".red()
+                    "mnemonic not found in config, and no MNEMONIC environment variable found."
+                        .red()
                 );
                 println!("{}", "Aborting...".red());
                 std::process::exit(1);
             });
             Wallet::new(mnemonic, network.clone())
-        },
+        }
         None => {
             println!(
                 "{} {} {}",
@@ -127,7 +132,8 @@ pub fn deploy_beacon(options: InitCommandOptions, config: Config) {
             println!("{}", "Aborting...".red());
             std::process::exit(1);
         }
-    }.unwrap_or_else(|e| {
+    }
+    .unwrap_or_else(|e| {
         println!(
             "{} {} {} {}",
             "[E007] Wallet".red(),
@@ -140,37 +146,112 @@ pub fn deploy_beacon(options: InitCommandOptions, config: Config) {
     });
 
     println!("Fetching latest release...");
-    let wasm_download_url = fetch_release_url().unwrap_or_else(|err| {
+    let wasm_download_url = fetch_release_url().await.unwrap_or_else(|err| {
         println!("{} {}", "[E005] ".red(), format!("Error: {}", err).red());
         println!("{}", "Aborting...".red());
         std::process::exit(1);
     });
     print!("Downloading latest release...");
     let download_path = std::env::temp_dir().join("mock_beacon.wasm");
-    let wasm_file = download_file(wasm_download_url, download_path).unwrap_or_else(|err| {
-        println!("{} {}", "[E006] ".red(), format!("Error: {}", err).red());
-        println!("{}", "Aborting...".red());
-        std::process::exit(1);
-    });
+    let wasm_file = download_file(wasm_download_url, download_path)
+        .await
+        .unwrap_or_else(|err| {
+            println!("{} {}", "[E006] ".red(), format!("Error: {}", err).red());
+            println!("{}", "Aborting...".red());
+            std::process::exit(1);
+        });
     println!("{}", " Done.".green());
 
     println!("{}", "Deploying Beacon...".green());
 
     let wasm_bytes = std::fs::read(wasm_file).unwrap_or_else(|err| {
-        println!("{} {}", "[E007] ".red(), format!("Error Reading WASM file: {}", err).red());
+        println!(
+            "{} {}",
+            "[E007] ".red(),
+            format!("Error Reading WASM file: {}", err).red()
+        );
         println!("{}", "Aborting...".red());
         std::process::exit(1);
     });
 
-    let msg = MsgStoreCode{
+    let msg = MsgStoreCode {
         sender: wallet.address.clone(),
         wasm_byte_code: wasm_bytes,
-        instantiate_permission: Some(AccessConfig{
+        instantiate_permission: Some(AccessConfig {
             permission: AccessType::OnlyAddress,
             address: wallet.address.clone(),
-        })
+        }),
     };
-    network.broadcast(msg);
+
+    println!("Uploading mock beacon contract...");
+    let hash = wallet.broadcast_msg(msg).await.unwrap_or_else(|err| {
+        println!(
+            "{} {}",
+            "[E008] ".red(),
+            format!("Error uploading WASM file: {}", err).red()
+        );
+        println!("{}", "Aborting...".red());
+        std::process::exit(1);
+    });
+    print!("Waiting for transaction to be included in a block...");
+    std::io::stdout().flush().unwrap();
+    let res = wallet.wait_for_hash(hash).await.unwrap_or_else(|err| {
+        println!(
+            "{} {}",
+            "[E009] ".red(),
+            format!("Error waiting for transaction: {}", err).red()
+        );
+        println!("{}", "Aborting...".red());
+        std::process::exit(1);
+    });
+
+    let res = MsgStoreCodeResponse::try_from(res).unwrap_or_else(|err| {
+        println!(
+            "{} {}",
+            "[E010] ".red(),
+            format!("Error parsing StoreCode transaction response: {}", err).red()
+        );
+        println!("{}", "Aborting...".red());
+        std::process::exit(1);
+    });
+
+    println!("{}", " Done.".green());
+
+    println!("Instantiating mock beacon contract...");
+    let msg = MsgInstantiateContract {
+        sender: wallet.address.clone(),
+        admin: Some(wallet.address.clone()),
+        code_id: res.code_id,
+        label: Some("Entropy Beacon (MOCK)".to_string()),
+        msg: json!({
+            "protocol_fee": 0,
+            "native_denom": wallet.network.gas_info.denom.clone(),
+        }).to_string().into_bytes(),
+        funds: vec![]
+    };
+
+    let hash = wallet.broadcast_msg(msg).await.unwrap_or_else(|err| {
+        println!(
+            "{} {}",
+            "[E011] ".red(),
+            format!("Error instantiating contract: {}", err).red()
+        );
+        println!("{}", "Aborting...".red());
+        std::process::exit(1);
+    });
+    print!("Waiting for transaction to be included in a block...");
+    std::io::stdout().flush().unwrap();
+    let res = wallet.wait_for_hash(hash).await.unwrap_or_else(|err| {
+        println!(
+            "{} {}",
+            "[E012] ".red(),
+            format!("Error waiting for transaction: {}", err).red()
+        );
+        println!("{}", "Aborting...".red());
+        std::process::exit(1);
+    });
+    println!("{}", " Done.".green());
+    println!("{}", serde_json::to_string_pretty(&res).unwrap());
 }
 
 pub fn prompt_config_creation(options: InitCommandOptions) {
@@ -333,6 +414,68 @@ pub fn create_config(path: Option<String>) {
                     std::io::stdin().read_line(&mut input).unwrap();
                     match input.trim() {
                         "y" | "Y" | "yes" | "Yes" | "" => break chain_prefix.trim().to_string(),
+                        _ => continue,
+                    }
+                },
+            },
+            NetworkGasInfo {
+                denom: loop {
+                    print!("{}: ", "Gas Denom".yellow());
+                    std::io::stdout().flush().unwrap();
+                    let mut denom = String::new();
+                    std::io::stdin().read_line(&mut denom).unwrap();
+                    println!("Using Gas Denom \"{}\"", denom.trim().yellow());
+                    print!("Confirm Gas Denom {}", "[Y/n]".yellow());
+                    std::io::stdout().flush().unwrap();
+                    let mut input = String::new();
+                    std::io::stdin().read_line(&mut input).unwrap();
+                    match input.trim() {
+                        "y" | "Y" | "yes" | "Yes" | "" => break denom.trim().to_string(),
+                        _ => continue,
+                    }
+                },
+                gas_price: loop {
+                    print!("{}: ", "Gas Price".yellow());
+                    std::io::stdout().flush().unwrap();
+                    let mut gas_price = String::new();
+                    std::io::stdin().read_line(&mut gas_price).unwrap();
+                    let gas_price = gas_price.trim().parse::<f64>();
+                    if gas_price.is_err() {
+                        println!("{}", "Invalid gas price.".red());
+                        continue;
+                    }
+                    let gas_price = gas_price.unwrap();
+                    println!("Using Gas Price \"{}\"", gas_price.to_string().yellow());
+                    print!("Confirm Gas Price {}", "[Y/n]".yellow());
+                    std::io::stdout().flush().unwrap();
+                    let mut input = String::new();
+                    std::io::stdin().read_line(&mut input).unwrap();
+                    match input.trim() {
+                        "y" | "Y" | "yes" | "Yes" | "" => break gas_price,
+                        _ => continue,
+                    }
+                },
+                gas_adjustment: loop {
+                    print!("{}: ", "Gas Adjustment".yellow());
+                    std::io::stdout().flush().unwrap();
+                    let mut gas_adjustment = String::new();
+                    std::io::stdin().read_line(&mut gas_adjustment).unwrap();
+                    let gas_adjustment = gas_adjustment.trim().parse::<f64>();
+                    if gas_adjustment.is_err() {
+                        println!("{}", "Invalid gas adjustment.".red());
+                        continue;
+                    }
+                    let gas_adjustment = gas_adjustment.unwrap();
+                    println!(
+                        "Using Gas Adjustment \"{}\"",
+                        gas_adjustment.to_string().yellow()
+                    );
+                    print!("Confirm Gas Adjustment {}", "[Y/n]".yellow());
+                    std::io::stdout().flush().unwrap();
+                    let mut input = String::new();
+                    std::io::stdin().read_line(&mut input).unwrap();
+                    match input.trim() {
+                        "y" | "Y" | "yes" | "Yes" | "" => break gas_adjustment,
                         _ => continue,
                     }
                 },

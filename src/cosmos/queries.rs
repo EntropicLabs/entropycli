@@ -1,4 +1,4 @@
-use super::wallet::Wallet;
+use super::{wallet::Wallet, response::TxResponse};
 
 use thiserror::Error;
 #[derive(Debug, Error)]
@@ -19,11 +19,22 @@ impl Wallet {
         let response = self.network.get(&path).await?;
 
         let json: serde_json::Value = response.json().await?;
+
         let account_number = json["account"]["account_number"]
-            .as_u64()
+            .as_str()
+            .map(|s| {
+                s.parse::<u64>()
+                    .map_err(|e| QueryError::ParseError(e.to_string()))
+            })
+            .transpose()?
             .ok_or_else(|| QueryError::AccountNotFound(self.address.to_string()))?;
         let sequence = json["account"]["sequence"]
-            .as_u64()
+            .as_str()
+            .map(|s| {
+                s.parse::<u64>()
+                    .map_err(|e| QueryError::ParseError(e.to_string()))
+            })
+            .transpose()?
             .ok_or_else(|| QueryError::AccountNotFound(self.address.to_string()))?;
 
         Ok((account_number, sequence))
@@ -32,10 +43,38 @@ impl Wallet {
     pub async fn block_height(&self) -> Result<u32, QueryError> {
         let response = self.network.get("blocks/latest").await?;
         let json: serde_json::Value = response.json().await?;
+
         let height = json["block"]["header"]["height"]
-            .as_u64()
+            .as_str()
+            .map(|s| {
+                s.parse::<u32>()
+                    .map_err(|e| QueryError::ParseError(e.to_string()))
+            })
+            .transpose()?
             .ok_or_else(|| QueryError::ParseError("Failed to parse block height".to_string()))?;
 
-        Ok(height as u32)
+        Ok(height)
+    }
+
+
+    pub async fn wait_for_hash(&self, tx_hash: String) -> Result<TxResponse, QueryError> {
+        loop {
+            let res = self
+                .network
+                .get(&format!("cosmos/tx/v1beta1/txs/{}", tx_hash))
+                .await
+                .map_err(QueryError::NetworkError)?;
+
+            let res = res.json::<serde_json::Value>().await?;
+
+            if res["code"].as_u64().map(|c| c==5).unwrap_or(false) {
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                continue;
+            }
+
+            let res = serde_json::from_value::<TxResponse>(res["tx_response"].clone())
+                .map_err(|e| QueryError::ParseError(e.to_string()))?;
+            return Ok(res);
+        }
     }
 }

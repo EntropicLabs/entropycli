@@ -10,10 +10,12 @@ use clap::Parser;
 
 use crate::args::{Cli, Command};
 use crate::commands::init;
-fn main() {
+
+#[tokio::main]
+async fn main() {
     let args = Cli::parse();
     match args.command {
-        Command::Init(options) => init(options),
+        Command::Init(options) => init(options).await,
     }
 }
 
