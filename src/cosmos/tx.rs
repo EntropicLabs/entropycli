@@ -2,7 +2,6 @@ use cosmrs::{
     tx::{
         mode_info::Single, AuthInfo, Body, Fee, Gas, ModeInfo, Msg, SignDoc, SignMode, SignerInfo,
     },
-    ErrorReport,
 };
 use serde_json::json;
 

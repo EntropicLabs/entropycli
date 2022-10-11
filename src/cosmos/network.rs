@@ -109,6 +109,7 @@ impl Network {
 }
 
 impl NetworkAccountInfo {
+    #[allow(dead_code)]
     pub fn new(derivation_path: DerivationPath, chain_prefix: String) -> Self {
         Self {
             derivation_path,
@@ -118,6 +119,7 @@ impl NetworkAccountInfo {
 }
 
 impl NetworkGasInfo {
+    #[allow(dead_code)]
     pub fn new(denom: String, gas_price: f64, gas_adjustment: f64) -> Self {
         Self {
             denom,

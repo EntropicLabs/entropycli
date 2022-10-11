@@ -19,7 +19,7 @@ async fn main() {
     }
 }
 
-
+#[allow(dead_code)]
 fn accounts() -> HashMap<String, String> {
     HashMap::from([
       ("validator".to_string(),
