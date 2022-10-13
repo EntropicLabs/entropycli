@@ -14,18 +14,18 @@ pub struct CLITheme {
 }
 
 impl CLITheme {
-    pub fn spinner(&self) -> ProgressStyle {
+    pub fn spinner() -> ProgressStyle {
         ProgressStyle::with_template("{spinner:.green} {msg}")
             .unwrap()
             .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏ ")
     }
 
-    pub fn failed_spinner(&self) -> ProgressStyle {
+    pub fn failed_spinner() -> ProgressStyle {
         ProgressStyle::with_template("{prefix:.red} {msg:.red}")
             .unwrap()
     }
 
-    pub fn success_spinner(&self) -> ProgressStyle {
+    pub fn success_spinner() -> ProgressStyle {
         ProgressStyle::with_template("{prefix:.green} {msg:.green}")
             .unwrap()
     }
@@ -98,10 +98,10 @@ impl Theme for CLITheme {
 
     /// Formats a select prompt.
     fn format_select_prompt(&self, f: &mut dyn fmt::Write, prompt: &str) -> fmt::Result {
-        if !prompt.is_empty() {
-            write!(f, "{}: ", self.normal.clone().bold().apply_to(prompt))
+        if prompt.is_empty() {
+            write!(f, "{}: ", self.dimmed.apply_to("question"))
         } else {
-            write!(f, "{} ", self.dimmed.apply_to("question"))
+            write!(f, "{}: ", self.normal.clone().bold().apply_to(prompt))
         }
     }
 
@@ -112,10 +112,10 @@ impl Theme for CLITheme {
         prompt: &str,
         sel: &str,
     ) -> fmt::Result {
-        if !prompt.is_empty() {
-            write!(f, "{}: ", self.normal.clone().bold().apply_to(prompt))?;
+        if prompt.is_empty() {
+            write!(f, "{}: ", self.dimmed.apply_to("question"))?;
         } else {
-            write!(f, "{} ", self.dimmed.apply_to("question"))?;
+            write!(f, "{}: ", self.normal.clone().bold().apply_to(prompt))?;
         }
         write!(f, "{}", self.success.apply_to(sel))
     }

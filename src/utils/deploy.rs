@@ -1,28 +1,32 @@
 use std::time::Duration;
 
-use cosmrs::cosmwasm::{AccessConfig, MsgStoreCode, AccessType, MsgStoreCodeResponse, MsgInstantiateContract};
+use cosmrs::cosmwasm::{
+    AccessConfig, AccessType, MsgInstantiateContract, MsgStoreCode, MsgStoreCodeResponse,
+};
 use indicatif::ProgressBar;
 use serde_json::json;
 
-use crate::{config::Config, theme::CLITheme, cosmos::wallet::Wallet, wasm_fetch::{fetch_release_url, download_file}};
+use crate::{
+    config::Config,
+    cosmos::wallet::Wallet,
+    theme::CLITheme,
+    wasm_fetch::{download_file, fetch_release_url},
+};
 
-pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, config: Config) {
+pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, config: &mut Config) {
     let theme = CLITheme::default();
-    let network = match network.or(config.default_network) {
-        Some(network) => network,
-        None => {
-            println!(
-                "{}",
-                theme.error.apply_to("No network specified. Please specify a network with the --network flag or set a default network in the config file.")
-            );
-            std::process::exit(1);
-        }
-    };
+    let network = network.or_else(|| config.default_network.clone()).unwrap_or_else(||{
+        println!(
+            "{}",
+            theme.error.apply_to("No network specified. Please specify a network with the --network flag or set a default network in the config file.")
+        );
+        std::process::exit(1);
+    });
     let name = network.as_str();
-    let network = config
+    let mut network = config
         .networks
-        .as_ref()
-        .and_then(|networks| networks.get(name))
+        .as_mut()
+        .and_then(|networks| networks.get_mut(name))
         .unwrap_or_else(|| {
             println!(
                 "{} {} {}",
@@ -31,19 +35,15 @@ pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, conf
                 theme.error.apply_to("not found in config file.")
             );
             std::process::exit(1);
-        })
-        .clone();
+        });
 
-    let wallet_name = match wallet.or(config.default_wallet) {
-        Some(wallet_name) => wallet_name,
-        None => {
+    let wallet_name = wallet.or_else(|| config.default_wallet.clone()).unwrap_or_else(|| {
             println!(
                 "{}",
                 theme.error.apply_to("No wallet specified. Please specify a wallet with the --wallet flag or set a default wallet in the config file.")
             );
             std::process::exit(1);
-        }
-    };
+        });
 
     let wallet = config
         .wallets
@@ -86,10 +86,10 @@ pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, conf
     });
     let pb = ProgressBar::new(1);
     pb.enable_steady_tick(Duration::from_millis(80));
-    pb.set_style(theme.spinner());
+    pb.set_style(CLITheme::spinner());
     pb.set_message("Fetching latest release...");
     let wasm_download_url = fetch_release_url().await.unwrap_or_else(|err| {
-        pb.set_style(theme.failed_spinner());
+        pb.set_style(CLITheme::failed_spinner());
         pb.set_prefix("✗");
         pb.finish_with_message(format!("{} {}", "Error fetching latest release:", err));
         std::process::exit(1);
@@ -99,7 +99,7 @@ pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, conf
     let wasm_file = download_file(wasm_download_url, download_path)
         .await
         .unwrap_or_else(|err| {
-            pb.set_style(theme.failed_spinner());
+            pb.set_style(CLITheme::failed_spinner());
             pb.set_prefix("✗");
             pb.finish_with_message(format!("{} {}", "Error downloading latest release:", err));
             std::process::exit(1);
@@ -107,7 +107,7 @@ pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, conf
     pb.set_message("Uploading beacon contract...");
 
     let wasm_bytes = std::fs::read(wasm_file).unwrap_or_else(|err| {
-        pb.set_style(theme.failed_spinner());
+        pb.set_style(CLITheme::failed_spinner());
         pb.set_prefix("✗");
         pb.finish_with_message(format!("{} {}", "Error reading WASM file:", err));
         std::process::exit(1);
@@ -123,14 +123,14 @@ pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, conf
     };
 
     let hash = wallet.broadcast_msg(msg).await.unwrap_or_else(|err| {
-        pb.set_style(theme.failed_spinner());
+        pb.set_style(CLITheme::failed_spinner());
         pb.set_prefix("✗");
         pb.finish_with_message(format!("{} {}", "Error uploading beacon contract:", err));
         std::process::exit(1);
     });
     pb.set_message("Waiting for transaction to be included in block...");
     let res = wallet.wait_for_hash(hash).await.unwrap_or_else(|err| {
-        pb.set_style(theme.failed_spinner());
+        pb.set_style(CLITheme::failed_spinner());
         pb.set_prefix("✗");
         pb.finish_with_message(format!(
             "{} {}",
@@ -140,7 +140,7 @@ pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, conf
     });
 
     let res = MsgStoreCodeResponse::try_from(res).unwrap_or_else(|err| {
-        pb.set_style(theme.failed_spinner());
+        pb.set_style(CLITheme::failed_spinner());
         pb.set_prefix("✗");
         pb.finish_with_message(format!(
             "{} {}",
@@ -165,7 +165,7 @@ pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, conf
     };
 
     let hash = wallet.broadcast_msg(msg).await.unwrap_or_else(|err| {
-        pb.set_style(theme.failed_spinner());
+        pb.set_style(CLITheme::failed_spinner());
         pb.set_prefix("✗");
         pb.finish_with_message(format!(
             "{} {}",
@@ -176,7 +176,7 @@ pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, conf
 
     pb.set_message("Waiting for transaction to be included in block...");
     let res = wallet.wait_for_hash(hash).await.unwrap_or_else(|err| {
-        pb.set_style(theme.failed_spinner());
+        pb.set_style(CLITheme::failed_spinner());
         pb.set_prefix("✗");
         pb.finish_with_message(format!(
             "{} {}",
@@ -191,17 +191,19 @@ pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, conf
         .find(|e| e.type_ == "instantiate")
         .and_then(|e| e.attributes.get("_contract_address"))
         .unwrap_or_else(|| {
-            pb.set_style(theme.failed_spinner());
+            pb.set_style(CLITheme::failed_spinner());
             pb.set_prefix("✗");
             pb.finish_with_message("Error decoding transaction response.");
             std::process::exit(1);
         });
 
-    pb.set_style(theme.success_spinner());
+    pb.set_style(CLITheme::success_spinner());
     pb.set_prefix("✓");
     pb.finish_with_message(format!(
         "{} {}",
         "Mock beacon contract instantiated at address:",
         theme.highlight.apply_to(deployed_address)
     ));
+
+    network.deployed_beacon_address = Some(deployed_address.to_string());
 }

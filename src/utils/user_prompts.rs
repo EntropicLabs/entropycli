@@ -70,6 +70,7 @@ pub fn create_network() -> (String, Network) {
                     lcd_url,
                     gas_info,
                     account_info,
+                    deployed_beacon_address: None,
                 },
             )
         }

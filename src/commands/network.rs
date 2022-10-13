@@ -46,7 +46,7 @@ pub async fn network_cmd(options: NetworkCommandOptions) {
     );
     match options.command {
         NetworkCommand::New { config } => {
-            let mut cfg = Config::load(Some(config.clone())).unwrap();
+            let mut cfg = Config::load(&config).unwrap();
             println!("{}", theme.highlight.apply_to("Creating a new network."),);
             let (name, network) = create_network();
             if let Some(ref mut networks) = cfg.networks {
@@ -55,10 +55,10 @@ pub async fn network_cmd(options: NetworkCommandOptions) {
                 cfg.networks = Some(HashMap::new());
                 cfg.networks.as_mut().unwrap().insert(name, network);
             }
-            cfg.save(Some(config)).unwrap();
+            cfg.save(&config).unwrap();
         }
         NetworkCommand::List { config } => {
-            let config = Config::load(Some(config)).unwrap();
+            let config = Config::load(&config).unwrap();
             if let Some(networks) = config.networks {
                 for (name, network) in networks {
                     println!("{}:", theme.highlight.apply_to(name));
@@ -106,7 +106,7 @@ pub async fn network_cmd(options: NetworkCommandOptions) {
             }
         }
         NetworkCommand::Remove { network, config } => {
-            let mut cfg = Config::load(Some(config.clone())).unwrap();
+            let mut cfg = Config::load(&config).unwrap();
             if let Some(ref mut networks) = cfg.networks {
                 if networks.remove(&network).is_none() {
                     println!(
@@ -116,7 +116,7 @@ pub async fn network_cmd(options: NetworkCommandOptions) {
                             .apply_to(format!("Network {} not found", network))
                     );
                 }
-                cfg.save(Some(config)).unwrap();
+                cfg.save(&config).unwrap();
             } else {
                 println!(
                     "{}",

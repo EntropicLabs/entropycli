@@ -14,6 +14,7 @@ pub struct Network {
     pub chain_id: ChainId,
     pub account_info: NetworkAccountInfo,
     pub gas_info: NetworkGasInfo,
+    pub deployed_beacon_address: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,6 +74,7 @@ impl Network {
                 gas_price: 5.0,
                 gas_adjustment: 1.25,
             },
+            deployed_beacon_address: None,
         }
     }
 
@@ -89,6 +91,7 @@ impl Network {
                 gas_price: 0.00125,
                 gas_adjustment: 1.25,
             },
+            deployed_beacon_address: None,
         }
     }
 }
