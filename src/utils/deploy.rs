@@ -9,25 +9,16 @@ use serde_json::json;
 use crate::{
     config::Config,
     cosmos::wallet::Wallet,
-    theme::CLITheme,
+    utils::CLITheme,
     wasm_fetch::{download_file, fetch_release_url},
 };
 
+#[allow(clippy::too_many_lines)]
 pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, config: &mut Config) {
     let theme = CLITheme::default();
-    let network = network.or_else(|| config.default_network.clone()).unwrap_or_else(||{
-        println!(
-            "{}",
-            theme.error.apply_to("No network specified. Please specify a network with the --network flag or set a default network in the config file.")
-        );
-        std::process::exit(1);
-    });
-    let name = network.as_str();
-    let mut network = config
-        .networks
-        .as_mut()
-        .and_then(|networks| networks.get_mut(name))
-        .unwrap_or_else(|| {
+    let mut network = match config.get_network(&network){
+        Ok((_, Some(network))) => network,
+        Ok((name, None)) => {
             println!(
                 "{} {} {}",
                 theme.error.apply_to("Network"),
@@ -35,7 +26,15 @@ pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, conf
                 theme.error.apply_to("not found in config file.")
             );
             std::process::exit(1);
-        });
+        },
+        Err(_) => {
+            println!(
+                "{}",
+                theme.error.apply_to("No network specified. Please specify a network with the --network flag or set a default network in the config file.")
+            );
+            std::process::exit(1);
+        }
+    };
 
     let wallet_name = wallet.or_else(|| config.default_wallet.clone()).unwrap_or_else(|| {
             println!(

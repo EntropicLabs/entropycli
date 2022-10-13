@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{config::Config, theme::CLITheme, utils::deploy::deploy_beacon};
+use crate::{config::Config, utils::CLITheme, utils::deploy::deploy_beacon};
 
 use clap::Parser;
 use dialoguer::Confirm;
@@ -60,6 +60,7 @@ pub async fn init_cmd(options: InitCommandOptions) {
                 theme.error.apply_to("Error updating config file: "),
                 theme.error.apply_to(e.to_string())
             );
+            std::process::exit(1);
         });
 
         println!(

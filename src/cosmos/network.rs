@@ -8,6 +8,8 @@ use cosmrs::{
 };
 use serde::{Deserialize, Serialize};
 
+use super::utils::mul_gas_float;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Network {
     pub lcd_url: String,
@@ -117,12 +119,17 @@ impl NetworkGasInfo {
     }
 
     pub fn gas_to_fee(&self, gas: impl Into<Gas> + Clone) -> Result<Fee, ErrorReport> {
-        let amount = (gas.clone().into().value() as f64 * self.gas_price)
-            .ceil() as u64;
+        #[allow(clippy::cast_precision_loss)]
+        #[allow(clippy::cast_possible_truncation)]
+        #[allow(clippy::cast_sign_loss)]
+        // We can safely cast here because we know that the gas price won't be
+        // mangled by these conversions.
+        let amount = u128::from(mul_gas_float(gas.clone(), self.gas_price).value());
+
         Ok(Fee::from_amount_and_gas(
             Coin {
                 denom: Denom::from_str(self.denom.as_str())?,
-                amount: amount.into(),
+                amount,
             },
             gas,
         ))

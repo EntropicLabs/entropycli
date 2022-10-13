@@ -5,7 +5,7 @@ use cosmrs::{
 };
 use serde_json::json;
 
-use super::{queries::QueryError, wallet::Wallet};
+use super::{queries::QueryError, wallet::Wallet, utils::mul_gas_float};
 
 use thiserror::Error;
 
@@ -139,8 +139,8 @@ impl Wallet {
             .transpose()?
             .ok_or_else(|| QueryError::AccountNotFound(self.address.to_string()))?;
 
-        let gas = (gas as f64 * self.network.gas_info.gas_adjustment).ceil() as u64;
+        let gas = mul_gas_float(gas,self.network.gas_info.gas_adjustment);
 
-        Ok(gas.into())
+        Ok(gas)
     }
 }

@@ -1,12 +1,13 @@
-use std::{
-    collections::HashMap,
-    io::{self, Write},
-    path::Path,
-};
+use std::{collections::HashMap, path::Path};
 
+use dialoguer::Confirm;
 use serde::{Deserialize, Serialize};
 
-use crate::{cosmos::network::Network, theme::CLITheme, utils::user_prompts::create_network};
+use crate::{
+    cosmos::network::Network,
+    utils::user_prompts::create_network,
+    utils::{user_prompts::create_wallet, CLITheme},
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -24,41 +25,60 @@ impl Config {
         let theme = CLITheme::default();
         let (network_name, network_info) = create_network();
 
-        print!(
-            "{} {}{}",
-            theme.dimmed.apply_to("Writing configuration to"),
-            theme.dimmed.apply_to(path.as_ref().to_str().unwrap()),
-            theme.dimmed.apply_to("..."),
-        );
-        let mut file = std::fs::File::create(path).unwrap();
-
-        let config = Config {
+        let mut config = Config {
             networks: Some(HashMap::from_iter(vec![(
                 network_name.to_string(),
                 network_info,
             )])),
             default_network: Some(network_name),
-            default_wallet: Some("<WALLET_NAME>".to_string()),
-            wallets: Some(HashMap::from_iter(vec![(
-                "<WALLET_NAME>".to_string(),
-                Some("<WALLET_MNEMONIC>".to_string()),
-            )])),
+            default_wallet: None,
+            wallets: None,
         };
 
-        let json = serde_json::to_string_pretty(&config).unwrap();
-        file.write_all(json.as_bytes()).unwrap();
-        println!(" {}", theme.success.apply_to("Done."));
-        println!(
-            "{}",
-            theme
-                .highlight
-                .bold()
-                .apply_to("Add your test wallet information to the config before proceeding.")
-        );
+        if Confirm::with_theme(&theme)
+            .with_prompt("Would you like to create a default wallet?")
+            .default(true)
+            .interact()
+            .unwrap()
+        {
+            let (name, mnemonic) = create_wallet();
+            config.default_wallet = Some(name.clone());
+            if let Some(ref mut wallets) = config.wallets {
+                wallets.insert(name, mnemonic);
+            } else {
+                config.wallets = Some(HashMap::new());
+                config.wallets.as_mut().unwrap().insert(name, mnemonic);
+            }
+        } else {
+            config.default_wallet = Some("<WALLET_NAME>".to_string());
+            config.wallets = Some(HashMap::from_iter(vec![(
+                "<WALLET_NAME>".to_string(),
+                Some("<WALLET_MNEMONIC>".to_string()),
+            )]));
+            println!(
+                "{}",
+                theme
+                    .highlight
+                    .bold()
+                    .apply_to("Add your test wallet information to the config before deploying.")
+            );
+        }
+
+        config.save(&path).unwrap_or_else(|e| {
+            println!(
+                "{} {}",
+                theme.error.apply_to("Error writing config file: "),
+                theme.error.apply_to(e.to_string())
+            );
+            std::process::exit(1);
+        });
+
+        println!("{}", theme.dimmed.apply_to("Wrote configuration to file."));
+
         config
     }
 
-    pub fn load<P>(path: &P) -> Result<Self, io::Error>
+    pub fn load<P>(path: &P) -> Result<Self, std::io::Error>
     where
         P: AsRef<Path>,
     {
@@ -66,12 +86,23 @@ impl Config {
         Ok(serde_json::from_str(&config).unwrap())
     }
 
-    pub fn save<P>(&self, path: &P) -> Result<(), io::Error>
+    pub fn save<P>(&self, path: &P) -> Result<(), std::io::Error>
     where
         P: AsRef<Path>,
     {
         let config = serde_json::to_string_pretty(self).unwrap();
         std::fs::write(path, config)?;
         Ok(())
+    }
+
+    pub fn get_network(&self, name: &Option<String>) -> Result<(String, Option<Network>), ()> {
+        let name = name
+            .as_ref()
+            .map_or(self.default_network.as_ref(), Some)
+            .ok_or(())?;
+        Ok((
+            name.clone(),
+            self.networks.as_ref().and_then(|n| n.get(name)).cloned(),
+        ))
     }
 }

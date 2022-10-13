@@ -1,7 +1,7 @@
 use clap::Parser;
 use console::style;
 
-use crate::{config::Config, theme::CLITheme, utils::deploy::deploy_beacon};
+use crate::{config::Config, utils::CLITheme, utils::deploy::deploy_beacon};
 
 #[derive(Debug, Parser, Clone)]
 pub struct DeployCommandOptions {
@@ -34,6 +34,7 @@ pub async fn deploy_cmd(options: DeployCommandOptions) {
             theme.error.apply_to("Error updating config file: "),
             theme.error.apply_to(e.to_string())
         );
+        std::process::exit(1);
     });
 
     println!(
