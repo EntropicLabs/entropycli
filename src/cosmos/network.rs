@@ -60,20 +60,6 @@ mod serialization {
 }
 
 impl Network {
-    pub fn new(
-        lcd_url: String,
-        chain_id: ChainId,
-        account_info: NetworkAccountInfo,
-        gas_info: NetworkGasInfo,
-    ) -> Self {
-        Self {
-            lcd_url,
-            chain_id,
-            account_info,
-            gas_info,
-        }
-    }
-
     pub fn default_localterra() -> Self {
         Self {
             lcd_url: "http://localhost:1317".to_string(),
@@ -91,17 +77,16 @@ impl Network {
     }
 
     pub fn default_localkujira() -> Self {
-        // TODO: Correct Kujira endpoints, etc.
         Self {
             lcd_url: "http://localhost:1317".to_string(),
-            chain_id: ChainId::try_from("localkujira".to_string()).unwrap(),
+            chain_id: ChainId::try_from("harpoon-2".to_string()).unwrap(),
             account_info: NetworkAccountInfo {
-                derivation_path: "m/44'/330'/0'/0/0".parse().unwrap(),
+                derivation_path: "m/44'/118'/0'/0/0".parse().unwrap(),
                 chain_prefix: "kujira".to_string(),
             },
             gas_info: NetworkGasInfo {
                 denom: "ukuji".to_string(),
-                gas_price: 0.15,
+                gas_price: 0.00125,
                 gas_adjustment: 1.25,
             },
         }

@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
 
+use crate::commands::{network::NetworkCommandOptions, init::InitCommandOptions, deploy::DeployCommandOptions};
+
 #[derive(Debug, Parser)]
 #[clap(version = env!("CARGO_PKG_VERSION"))]
 #[clap(about = "A CLI tool to develop applications using the Entropic Labs ecosystem")]
@@ -12,17 +14,10 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    #[clap(about = "Initialize a new instance of Beacon")]
+    #[clap(about = "Initialize a new project")]
     Init(InitCommandOptions),
-}
-
-#[derive(Debug, Parser, Clone)]
-pub struct InitCommandOptions {
-    /// Optional path to the configuration file
-    #[clap(short, long)]
-    pub config: Option<String>,
-    #[clap(short, long)]
-    pub network: Option<String>,
-    #[clap(short, long)]
-    pub wallet: Option<String>,
+    #[clap(about = "Manage networks")]
+    Network(NetworkCommandOptions),
+    #[clap(about = "Deploy a new instance of Beacon")]
+    Deploy(DeployCommandOptions),
 }

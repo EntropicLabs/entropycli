@@ -67,7 +67,7 @@ impl Wallet {
 
             let res = res.json::<serde_json::Value>().await?;
 
-            if res["code"].as_u64().map(|c| c==5).unwrap_or(false) {
+            if res["code"].as_u64().map_or(false, |c| c==5) {
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                 continue;
             }

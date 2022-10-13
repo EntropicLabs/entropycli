@@ -1,4 +1,4 @@
-use cosmrs::cosmwasm::MsgStoreCodeResponse;
+use cosmrs::{cosmwasm::MsgStoreCodeResponse};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -72,9 +72,10 @@ mod serialization {
             value: String,
         }
         let attrs = Vec::<Attr>::deserialize(deserializer)?;
-        Ok(HashMap::from_iter(
-            attrs.into_iter().map(|attr| (attr.key, attr.value)),
-        ))
+        Ok(attrs
+            .into_iter()
+            .map(|attr| (attr.key, attr.value))
+            .collect::<HashMap<_, _>>())
     }
 }
 
@@ -106,3 +107,9 @@ impl TryFrom<TxResponse> for MsgStoreCodeResponse {
         Ok(MsgStoreCodeResponse { code_id })
     }
 }
+
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub struct MsgInstantiateContractResponse {
+//     pub address: AccountId,
+
+// }

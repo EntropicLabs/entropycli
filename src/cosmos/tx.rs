@@ -73,8 +73,6 @@ impl Wallet {
 
         let res = res.json::<serde_json::Value>().await?;
 
-        println!("{}", serde_json::to_string_pretty(&res).unwrap());
-
         let tx_hash = res["tx_response"]["txhash"]
             .as_str()
             .ok_or_else(|| TxError::Parse("Error parsing txhash, unexpected response".to_string()))?
@@ -92,7 +90,7 @@ impl Wallet {
         }
         .auth_info(Fee {
             amount: vec![],
-            gas_limit: Default::default(),
+            gas_limit: Gas::default(),
             payer: None,
             granter: None,
         })

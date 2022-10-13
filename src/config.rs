@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, io};
 
 use serde::{Deserialize, Serialize};
 
@@ -13,12 +13,22 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn load(path: Option<String>) -> Self {
+    pub fn load(path: Option<String>) -> Result<Self,io::Error> {
         let path = match path {
             Some(path) => PathBuf::from(path),
-            None => std::env::current_dir().unwrap().join("entropy.json"),
+            None => std::env::current_dir()?.join("entropy.json"),
         };
-        let config = std::fs::read_to_string(path).unwrap();
-        serde_json::from_str(&config).unwrap()
+        let config = std::fs::read_to_string(path)?;
+        Ok(serde_json::from_str(&config).unwrap())
+    }
+
+    pub fn save(&self, path: Option<String>) -> Result<(),io::Error> {
+        let path = match path {
+            Some(path) => PathBuf::from(path),
+            None => std::env::current_dir()?.join("entropy.json"),
+        };
+        let config = serde_json::to_string_pretty(self).unwrap();
+        std::fs::write(path, config)?;
+        Ok(())
     }
 }

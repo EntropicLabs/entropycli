@@ -1,21 +1,26 @@
 mod args;
 mod commands;
+mod utils;
 mod config;
 mod wasm_fetch;
 mod cosmos;
+mod theme;
 
 use std::collections::HashMap;
 
 use clap::Parser;
+use commands::{network_cmd, deploy_cmd};
 
 use crate::args::{Cli, Command};
-use crate::commands::init;
+use crate::commands::init_cmd;
 
 #[tokio::main]
 async fn main() {
     let args = Cli::parse();
     match args.command {
-        Command::Init(options) => init(options).await,
+        Command::Init(options) => init_cmd(options).await,
+        Command::Network(options) => network_cmd(options).await,
+        Command::Deploy(options) => deploy_cmd(options).await,
     }
 }
 
