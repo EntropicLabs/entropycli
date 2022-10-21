@@ -4,7 +4,13 @@ use clap::{Parser, Subcommand};
 use console::style;
 
 use crate::{
-    config::Config, cosmos::network::Network, utils::user_prompts::create_network, utils::CLITheme,
+    commands::worker::worker_config::NetworkConfiguration,
+    cosmos::network::Network,
+    utils::{config::ConfigType, CLITheme},
+    utils::{
+        config::ConfigUtils,
+        user_prompts::{create_network, create_wallet},
+    },
 };
 
 #[derive(Debug, Parser, Clone)]
@@ -32,52 +38,95 @@ pub enum NetworkCommand {
     },
     #[clap(about = "Remove a network from the configuration file")]
     Remove {
-        network: String,
         /// Path to the configuration file
         #[clap(short, long)]
         #[clap(default_value = "entropy.json")]
         config: String,
+        network: String,
     },
 }
 
 pub fn network_cmd(options: NetworkCommandOptions) {
-    let theme = CLITheme::default();
-
     println!(
         "{}",
         style(format!("entropy network v{}", env!("CARGO_PKG_VERSION"))).bold()
     );
     match options.command {
-        NetworkCommand::New { config } => {
-            let mut cfg = Config::load(&config).unwrap();
-            println!("{}", theme.highlight.apply_to("Creating a new network."),);
-            let (name, network) = create_network();
+        NetworkCommand::New { config } => new_network(&config),
+        NetworkCommand::List { config } => list_networks(&config),
+        NetworkCommand::Remove { config, network } => remove_network(&config, &network),
+    }
+}
+
+fn new_network(config: &String) {
+    let theme = CLITheme::default();
+    let mut cfg = ConfigUtils::load(&config).unwrap_or_else(|e| {
+        println!(
+            "{} {}",
+            theme.error.apply_to("Error loading config file: "),
+            theme.error.apply_to(e.to_string())
+        );
+        std::process::exit(1);
+    });
+    println!("{}", theme.highlight.apply_to("Creating a new network."),);
+    let (name, network) = create_network();
+    match cfg {
+        ConfigType::Project(ref mut cfg) => {
             if let Some(ref mut networks) = cfg.networks {
                 networks.insert(name, network);
             } else {
                 cfg.networks = Some(HashMap::new());
                 cfg.networks.as_mut().unwrap().insert(name, network);
             }
-
-            cfg.save(&config).unwrap_or_else(|e| {
-                println!(
-                    "{} {}",
-                    theme.error.apply_to("Error updating config file: "),
-                    theme.error.apply_to(e.to_string())
-                );
-                std::process::exit(1);
-            });
-
+        }
+        ConfigType::Worker(ref mut cfg) => {
             println!(
                 "{}",
                 theme
-                    .dimmed
-                    .apply_to("Updated config file with new network.")
+                    .highlight
+                    .apply_to("Mnemonic for this network (leave blank to use ENV variables)"),
             );
+            let (_, mnemonic) = create_wallet();
+            let network = NetworkConfiguration {
+                network,
+                signer_mnemonic: mnemonic,
+            };
+            cfg.networks.insert(name, network);
         }
-        NetworkCommand::List { config } => {
-            let config = Config::load(&config).unwrap();
-            if let Some(networks) = config.networks {
+    }
+
+    ConfigUtils::save(&cfg, &config).unwrap_or_else(|e| {
+        println!(
+            "{} {}",
+            theme.error.apply_to("Error updating config file: "),
+            theme.error.apply_to(e.to_string())
+        );
+        std::process::exit(1);
+    });
+
+    println!(
+        "{}",
+        theme
+            .dimmed
+            .apply_to("Updated config file with new network.")
+    );
+}
+
+fn list_networks(config: &String) {
+    let theme = CLITheme::default();
+
+    let cfg = ConfigUtils::load(&config).unwrap_or_else(|e| {
+        println!(
+            "{} {}",
+            theme.error.apply_to("Error loading config file: "),
+            theme.error.apply_to(e.to_string())
+        );
+        std::process::exit(1);
+    });
+
+    match cfg {
+        ConfigType::Project(cfg) => {
+            if let Some(networks) = cfg.networks {
                 for (name, network) in networks {
                     print_network(&network, &name, &theme);
                 }
@@ -86,14 +135,50 @@ pub fn network_cmd(options: NetworkCommandOptions) {
                     "{}",
                     theme
                         .error
-                        .apply_to("No networks found in configuration file")
+                        .apply_to("No networks found in configuration file.")
                 );
             }
         }
-        NetworkCommand::Remove { network, config } => {
-            let mut cfg = Config::load(&config).unwrap();
+        ConfigType::Worker(cfg) => {
+            if cfg.networks.is_empty() {
+                println!(
+                    "{}",
+                    theme
+                        .error
+                        .apply_to("No networks found in configuration file.")
+                );
+            } else {
+                for (name, net_cfg) in cfg.networks {
+                    print_network(&net_cfg.network, &name, &theme);
+                    println!(
+                        "    {} {}",
+                        theme.dimmed.apply_to("signer-mnemonic:"),
+                        theme.normal.apply_to(
+                            net_cfg
+                                .signer_mnemonic
+                                .map_or("Fetched from ENV", |_| "<mnemonic hidden>")
+                        )
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn remove_network(config: &String, network: &String) {
+    let theme = CLITheme::default();
+    let mut cfg = ConfigUtils::load(&config).unwrap_or_else(|e| {
+        println!(
+            "{} {}",
+            theme.error.apply_to("Error loading config file: "),
+            theme.error.apply_to(e.to_string())
+        );
+        std::process::exit(1);
+    });
+    match cfg {
+        ConfigType::Project(ref mut cfg) => {
             if let Some(ref mut networks) = cfg.networks {
-                if networks.remove(&network).is_none() {
+                if networks.remove(network).is_none() {
                     println!(
                         "{}",
                         theme
@@ -101,21 +186,6 @@ pub fn network_cmd(options: NetworkCommandOptions) {
                             .apply_to(format!("Network {} not found", network))
                     );
                 }
-                cfg.save(&config).unwrap_or_else(|e| {
-                    println!(
-                        "{} {}",
-                        theme.error.apply_to("Error updating config file: "),
-                        theme.error.apply_to(e.to_string())
-                    );
-                    std::process::exit(1);
-                });
-
-                println!(
-                    "{}",
-                    theme
-                        .dimmed
-                        .apply_to("Updated config file with new network.")
-                );
             } else {
                 println!(
                     "{}",
@@ -125,7 +195,27 @@ pub fn network_cmd(options: NetworkCommandOptions) {
                 );
             }
         }
+        ConfigType::Worker(ref mut cfg) => {
+            if cfg.networks.remove(network).is_none() {
+                println!(
+                    "{}",
+                    theme
+                        .error
+                        .apply_to(format!("Network {} not found", network))
+                );
+            }
+        }
     }
+    ConfigUtils::save(&cfg, &config).unwrap_or_else(|e| {
+        println!(
+            "{} {}",
+            theme.error.apply_to("Error updating config file: "),
+            theme.error.apply_to(e.to_string())
+        );
+        std::process::exit(1);
+    });
+
+    println!("{}", theme.dimmed.apply_to("Saved all changes."));
 }
 
 fn print_network(network: &Network, name: &String, theme: &CLITheme) {

@@ -1,16 +1,14 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 mod commands;
-mod utils;
-mod config;
-mod wasm_fetch;
 mod cosmos;
+mod types;
+mod utils;
 
 use clap::{Parser, Subcommand};
-use commands::{init_cmd, network_cmd, deploy_cmd, wallet_cmd};
+use commands::{beacon::{BeaconCommandOptions, beacon_cmd}, network::network_cmd};
 
-
-use crate::commands::{network::NetworkCommandOptions, init::InitCommandOptions, deploy::DeployCommandOptions, wallet::WalletCommandOptions};
+use crate::commands::network::NetworkCommandOptions;
 
 #[derive(Debug, Parser)]
 #[clap(version = env!("CARGO_PKG_VERSION"))]
@@ -24,23 +22,17 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    #[clap(about = "Initialize a new project")]
-    Init(InitCommandOptions),
     #[clap(about = "Manage networks")]
     Network(NetworkCommandOptions),
-    #[clap(about = "Deploy a new instance of Beacon")]
-    Deploy(DeployCommandOptions),
-    #[clap(about = "Manage wallets")]
-    Wallet(WalletCommandOptions),
+    #[clap(about = "Manage local beacon projects")]
+    Beacon(BeaconCommandOptions),
 }
 
 #[tokio::main]
 async fn main() {
     let args = Cli::parse();
     match args.command {
-        Command::Init(options) => init_cmd(options).await,
-        Command::Deploy(options) => deploy_cmd(options).await,
         Command::Network(options) => network_cmd(options),
-        Command::Wallet(options) => wallet_cmd(options),
+        Command::Beacon(options) => beacon_cmd(options).await,
     }
 }

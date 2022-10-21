@@ -1,6 +1,10 @@
 use std::path::PathBuf;
 
-use crate::{config::Config, utils::CLITheme, utils::deploy::deploy_beacon};
+use crate::{
+    commands::beacon::project_config::ProjectConfig,
+    utils::{deploy::deploy_beacon, config::ConfigType},
+    utils::{CLITheme, config::ConfigUtils},
+};
 
 use clap::Parser;
 use dialoguer::Confirm;
@@ -41,10 +45,23 @@ pub async fn init_cmd(options: InitCommandOptions) {
         .interact()
         .unwrap()
     {
-        Config::prompt_config_creation(&options.config);
+        ProjectConfig::prompt_config_creation(&options.config);
     }
 
-    let mut config = Config::load(&options.config).unwrap();
+    let config = ConfigUtils::load(&options.config).unwrap_or_else(|e| {
+        println!(
+            "{} {}",
+            theme.error.apply_to("Error loading config file: "),
+            theme.error.apply_to(e.to_string())
+        );
+        std::process::exit(1);
+    });
+    let mut config = if let ConfigType::Project(config) = config {
+        config
+    } else {
+        println!("{}", theme.error.apply_to("Config file is not a project config"));
+        std::process::exit(1);
+    };
 
     if Confirm::with_theme(&theme)
         .with_prompt("Deploy mock beacon?")
@@ -54,7 +71,7 @@ pub async fn init_cmd(options: InitCommandOptions) {
     {
         deploy_beacon(options.network, options.wallet, &mut config).await;
 
-        config.save(&options.config).unwrap_or_else(|e| {
+        ConfigUtils::save(&config, &options.config).unwrap_or_else(|e| {
             println!(
                 "{} {}",
                 theme.error.apply_to("Error updating config file: "),

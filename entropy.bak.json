@@ -1,0 +1,38 @@
+{
+  "networks": {
+    "localterra": {
+      "lcd_url": "http://localhost:1317",
+      "chain_id": "localterra",
+      "account_info": {
+        "derivation_path": "m/44'/330'/0'/0/0",
+        "chain_prefix": "terra"
+      },
+      "gas_info": {
+        "denom": "uluna",
+        "gas_price": 5.0,
+        "gas_adjustment": 1.25
+      },
+      "deployed_beacon_address": "terra1l8t0ye7jnn2jv0xh74hp3n3dndncp4h73wkcuvwax5w0pcf68ndqjsnhn6"
+    },
+    "localkujira": {
+      "lcd_url": "http://localhost:1317",
+      "chain_id": "harpoon-2",
+      "account_info": {
+        "derivation_path": "m/44'/118'/0'/0/0",
+        "chain_prefix": "kujira"
+      },
+      "gas_info": {
+        "denom": "ukuji",
+        "gas_price": 0.00125,
+        "gas_adjustment": 1.25
+      },
+      "deployed_beacon_address": null
+    }
+  },
+  "default_network": "localterra",
+  "default_wallet": "test1",
+  "wallets": {
+    "kuji_test1": "husband pattern write yard baby minor will hold swift poverty blanket rack unfair label biology oil prefer myth bus library reduce say moral tomorrow",
+    "test1": "notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius"
+  }
+}

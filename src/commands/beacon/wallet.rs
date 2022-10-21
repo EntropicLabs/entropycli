@@ -4,7 +4,10 @@ use clap::{Parser, Subcommand};
 use console::style;
 use dialoguer::Select;
 
-use crate::{config::Config, utils::user_prompts::create_wallet, utils::CLITheme};
+use crate::{
+    utils::{config::ConfigType, user_prompts::create_wallet},
+    utils::{config::ConfigUtils, CLITheme},
+};
 
 #[derive(Debug, Parser, Clone)]
 pub struct WalletCommandOptions {
@@ -60,8 +63,27 @@ pub fn wallet_cmd(options: WalletCommandOptions) {
 }
 
 fn new_wallet(config: &str) {
-    let mut cfg = Config::load(&config).unwrap();
     let theme = CLITheme::default();
+    let cfg = ConfigUtils::load(&config).unwrap_or_else(|e| {
+        println!(
+            "{} {}",
+            theme.error.apply_to("Error loading config file: "),
+            theme.error.apply_to(e.to_string())
+        );
+        std::process::exit(1);
+    });
+
+    let mut cfg = if let ConfigType::Project(cfg) = cfg {
+        cfg
+    } else {
+        println!(
+            "{}",
+            theme
+                .error
+                .apply_to("Error: This command is only available for beacon projects.")
+        );
+        std::process::exit(1);
+    };
 
     println!("{}", theme.highlight.apply_to("Creating a new wallet."),);
     let (name, mnemonic) = create_wallet();
@@ -73,7 +95,7 @@ fn new_wallet(config: &str) {
         cfg.wallets.as_mut().unwrap().insert(name, mnemonic);
     }
 
-    cfg.save(&config).unwrap_or_else(|e| {
+    ConfigUtils::save(&cfg, &config).unwrap_or_else(|e| {
         println!(
             "{} {}",
             theme.error.apply_to("Error updating config file: "),
@@ -91,10 +113,29 @@ fn new_wallet(config: &str) {
 }
 
 fn list_wallets(config: &str, show_mnemonics: bool) {
-    let config = Config::load(&config).unwrap();
     let theme = CLITheme::default();
+    let cfg = ConfigUtils::load(&config).unwrap_or_else(|e| {
+        println!(
+            "{} {}",
+            theme.error.apply_to("Error loading config file: "),
+            theme.error.apply_to(e.to_string())
+        );
+        std::process::exit(1);
+    });
 
-    if let Some(wallets) = config.wallets {
+    let cfg = if let ConfigType::Project(cfg) = cfg {
+        cfg
+    } else {
+        println!(
+            "{}",
+            theme
+                .error
+                .apply_to("Error: This command is only available for beacon projects.")
+        );
+        std::process::exit(1);
+    };
+
+    if let Some(wallets) = cfg.wallets {
         println!("{}", theme.highlight.apply_to("Wallets:"),);
         for (name, mnemonic) in wallets {
             if show_mnemonics {
@@ -121,8 +162,27 @@ fn list_wallets(config: &str, show_mnemonics: bool) {
 }
 
 fn remove_wallet(wallet: Option<String>, config: &str) {
-    let mut cfg = Config::load(&config).unwrap();
     let theme = CLITheme::default();
+    let cfg = ConfigUtils::load(&config).unwrap_or_else(|e| {
+        println!(
+            "{} {}",
+            theme.error.apply_to("Error loading config file: "),
+            theme.error.apply_to(e.to_string())
+        );
+        std::process::exit(1);
+    });
+
+    let mut cfg = if let ConfigType::Project(cfg) = cfg {
+        cfg
+    } else {
+        println!(
+            "{}",
+            theme
+                .error
+                .apply_to("Error: This command is only available for beacon projects.")
+        );
+        std::process::exit(1);
+    };
 
     let wallet = wallet.unwrap_or_else(|| {
         if let Some(ref wallets) = cfg.wallets {
@@ -144,7 +204,7 @@ fn remove_wallet(wallet: Option<String>, config: &str) {
         .as_mut()
         .map_or(false, |wallets| wallets.remove(&wallet).is_some());
     if removed {
-        cfg.save(&config).unwrap_or_else(|e| {
+        ConfigUtils::save(&cfg, &config).unwrap_or_else(|e| {
             println!(
                 "{} {}",
                 theme.error.apply_to("Error updating config file: "),
@@ -157,7 +217,7 @@ fn remove_wallet(wallet: Option<String>, config: &str) {
             "{}",
             theme
                 .dimmed
-                .apply_to("Updated config file with new wallet.")
+                .apply_to("Removed wallet and saved updated config file.")
         );
     } else {
         println!(

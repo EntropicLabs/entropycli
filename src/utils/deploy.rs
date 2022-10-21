@@ -7,16 +7,16 @@ use indicatif::ProgressBar;
 use serde_json::json;
 
 use crate::{
-    config::Config,
+    commands::beacon::project_config::ProjectConfig,
     cosmos::wallet::Wallet,
+    utils::wasm_fetch::{download_file, fetch_release_url},
     utils::CLITheme,
-    wasm_fetch::{download_file, fetch_release_url},
 };
 
 #[allow(clippy::too_many_lines)]
-pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, config: &mut Config) {
+pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, config: &mut ProjectConfig) {
     let theme = CLITheme::default();
-    let mut network = match config.get_network(&network){
+    let mut network = match config.get_network(&network) {
         Ok((_, Some(network))) => network,
         Ok((name, None)) => {
             println!(
@@ -26,7 +26,7 @@ pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, conf
                 theme.error.apply_to("not found in config file.")
             );
             std::process::exit(1);
-        },
+        }
         Err(_) => {
             println!(
                 "{}",

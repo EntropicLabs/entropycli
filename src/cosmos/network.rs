@@ -26,7 +26,7 @@ pub struct NetworkAccountInfo {
     pub derivation_path: DerivationPath,
     pub chain_prefix: String,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, PartialOrd)]
 pub struct NetworkGasInfo {
     pub denom: String,
     pub gas_price: f64,

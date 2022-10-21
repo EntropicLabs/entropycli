@@ -1,7 +1,10 @@
 use clap::Parser;
 use console::style;
 
-use crate::{config::Config, utils::CLITheme, utils::deploy::deploy_beacon};
+use crate::{
+    utils::{config::ConfigType, CLITheme},
+    utils::{config::ConfigUtils, deploy::deploy_beacon},
+};
 
 #[derive(Debug, Parser, Clone)]
 pub struct DeployCommandOptions {
@@ -24,11 +27,27 @@ pub async fn deploy_cmd(options: DeployCommandOptions) {
         style(format!("entropy deploy v{}", env!("CARGO_PKG_VERSION"))).bold()
     );
 
-    let mut config = Config::load(&options.config).unwrap();
+    let config = ConfigUtils::load(&options.config).unwrap_or_else(|e| {
+        println!(
+            "{} {}",
+            theme.error.apply_to("Error loading config file: "),
+            theme.error.apply_to(e.to_string())
+        );
+        std::process::exit(1);
+    });
+    let mut config = if let ConfigType::Project(config) = config {
+        config
+    } else {
+        println!(
+            "{}",
+            theme.error.apply_to("Config file is not a project config")
+        );
+        std::process::exit(1);
+    };
 
     deploy_beacon(options.network, options.wallet, &mut config).await;
 
-    config.save(&options.config).unwrap_or_else(|e| {
+    ConfigUtils::save(&config, &options.config).unwrap_or_else(|e| {
         println!(
             "{} {}",
             theme.error.apply_to("Error updating config file: "),

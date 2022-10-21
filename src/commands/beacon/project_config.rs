@@ -5,27 +5,27 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     cosmos::network::Network,
-    utils::user_prompts::create_network,
+    utils::{config::ConfigUtils, user_prompts::create_network},
     utils::{user_prompts::create_wallet, CLITheme},
 };
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Config {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectConfig {
     pub networks: Option<HashMap<String, Network>>,
     pub default_network: Option<String>,
     pub default_wallet: Option<String>,
     pub wallets: Option<HashMap<String, Option<String>>>,
 }
 
-impl Config {
-    pub fn prompt_config_creation<P>(path: &P) -> Config
+impl ProjectConfig {
+    pub fn prompt_config_creation<P>(path: &P) -> ProjectConfig
     where
         P: AsRef<Path> + Into<String>,
     {
         let theme = CLITheme::default();
         let (network_name, network_info) = create_network();
 
-        let mut config = Config {
+        let mut config = ProjectConfig {
             networks: Some(HashMap::from_iter(vec![(
                 network_name.to_string(),
                 network_info,
@@ -63,8 +63,7 @@ impl Config {
                     .apply_to("Add your test wallet information to the config before deploying.")
             );
         }
-
-        config.save(&path).unwrap_or_else(|e| {
+        ConfigUtils::save(&config, &path).unwrap_or_else(|e| {
             println!(
                 "{} {}",
                 theme.error.apply_to("Error writing config file: "),
@@ -76,23 +75,6 @@ impl Config {
         println!("{}", theme.dimmed.apply_to("Wrote configuration to file."));
 
         config
-    }
-
-    pub fn load<P>(path: &P) -> Result<Self, std::io::Error>
-    where
-        P: AsRef<Path>,
-    {
-        let config = std::fs::read_to_string(path)?;
-        Ok(serde_json::from_str(&config).unwrap())
-    }
-
-    pub fn save<P>(&self, path: &P) -> Result<(), std::io::Error>
-    where
-        P: AsRef<Path>,
-    {
-        let config = serde_json::to_string_pretty(self).unwrap();
-        std::fs::write(path, config)?;
-        Ok(())
     }
 
     pub fn get_network(&self, name: &Option<String>) -> Result<(String, Option<Network>), ()> {
