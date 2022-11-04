@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use ecvrf_rs::SecretKey;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -15,7 +16,7 @@ pub struct NetworkConfiguration {
 
 #[derive(Debug,Clone, Serialize, Deserialize, Default)]
 pub struct WorkerConfig {
-    pub registered_keys: Vec<String>,
+    pub registered_keys: Vec<SecretKey>,
     pub networks: HashMap<String, NetworkConfiguration>,
     pub default_network: Option<String>,
 }

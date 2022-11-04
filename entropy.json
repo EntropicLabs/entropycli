@@ -8,7 +8,7 @@
         "derivation_path": "m/44'/330'/0'/0/0"
       },
       "chain_id": "localterra",
-      "deployed_beacon_address": null,
+      "deployed_beacon_address": "terra1v3qgfl0f57erknuaft4g3379pnd5f9ywhde8gddyruqw34m3c9lsjd8ehu",
       "gas_info": {
         "denom": "uluna",
         "gas_adjustment": 1.25,

@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use clap::{Parser, Subcommand};
-use console::style;
 
 use crate::{
     commands::worker::worker_config::NetworkConfiguration,
@@ -49,7 +48,7 @@ pub enum NetworkCommand {
 pub fn network_cmd(options: NetworkCommandOptions) {
     println!(
         "{}",
-        style(format!("entropy network v{}", env!("CARGO_PKG_VERSION"))).bold()
+        dialoguer::console::style(format!("entropy network v{}", env!("CARGO_PKG_VERSION"))).bold()
     );
     match options.command {
         NetworkCommand::New { config } => new_network(&config),

@@ -1,11 +1,9 @@
-use cosmrs::{
-    tx::{
-        mode_info::Single, AuthInfo, Body, Fee, Gas, ModeInfo, Msg, SignDoc, SignMode, SignerInfo,
-    },
+use cosmrs::tx::{
+    mode_info::Single, AuthInfo, Body, Fee, Gas, ModeInfo, Msg, SignDoc, SignMode, SignerInfo,
 };
 use serde_json::json;
 
-use super::{queries::QueryError, wallet::Wallet, utils::mul_gas_float};
+use super::{queries::QueryError, utils::mul_gas_float, wallet::Wallet};
 
 use thiserror::Error;
 
@@ -20,12 +18,14 @@ pub enum TxError {
     Query(#[from] super::queries::QueryError),
     #[error("ChainID {0} unparsable")]
     ChainID(String),
+    #[error("Out of gas")]
+    OutOfGas,
 }
 
 pub const HEIGHT_TIMEOUT_INTERVAL: u32 = 10;
 
 impl Wallet {
-    pub async fn broadcast_msg<M>(&self, msg: M) -> Result<String, TxError>
+    pub async fn broadcast_msg<M>(&self, msg: M, gas: Option<Gas>) -> Result<String, TxError>
     where
         M: Msg,
     {
@@ -39,7 +39,10 @@ impl Wallet {
             block_height + HEIGHT_TIMEOUT_INTERVAL,
         );
 
-        let gas = self.estimate_gas(msg).await?;
+        let gas = match gas {
+            Some(gas) => gas,
+            None => self.estimate_gas(msg).await?,
+        };
 
         let auth_info = SignerInfo::single_direct(Some(self.pubkey), seq).auth_info(
             self.network
@@ -56,7 +59,7 @@ impl Wallet {
             .map_err(|e| TxError::Parse(e.to_string()))?
             .to_bytes()
             .map_err(|e| TxError::Parse(e.to_string()))?;
-        
+
         let tx_raw = base64::encode(tx_raw);
 
         let res = self
@@ -72,6 +75,13 @@ impl Wallet {
             .map_err(QueryError::NetworkError)?;
 
         let res = res.json::<serde_json::Value>().await?;
+
+        if res["tx_response"]["code"]
+            .as_u64()
+            .map_or(false, |c| c == 11)
+        {
+            return Err(TxError::OutOfGas);
+        }
 
         let tx_hash = res["tx_response"]["txhash"]
             .as_str()
@@ -139,7 +149,7 @@ impl Wallet {
             .transpose()?
             .ok_or_else(|| QueryError::AccountNotFound(self.address.to_string()))?;
 
-        let gas = mul_gas_float(gas,self.network.gas_info.gas_adjustment);
+        let gas = mul_gas_float(gas, self.network.gas_info.gas_adjustment);
 
         Ok(gas)
     }

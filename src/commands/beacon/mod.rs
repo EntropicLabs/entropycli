@@ -4,10 +4,12 @@ pub mod deploy;
 pub mod init;
 pub mod project_config;
 pub mod wallet;
+pub mod dev;
 
 use deploy::{DeployCommandOptions, deploy_cmd};
 use init::{InitCommandOptions, init_cmd};
 use wallet::{WalletCommandOptions, wallet_cmd};
+use dev::{DevCommandOptions, dev_cmd};
 
 #[derive(Debug, Parser, Clone)]
 pub struct BeaconCommandOptions {
@@ -23,6 +25,8 @@ pub enum BeaconCommand {
     Deploy(DeployCommandOptions),
     #[clap(about = "Manage wallets")]
     Wallet(WalletCommandOptions),
+    #[clap(about = "Run a local development instance of workers")]
+    Dev(DevCommandOptions),
 }
 
 pub async fn beacon_cmd(options: BeaconCommandOptions) {
@@ -30,5 +34,6 @@ pub async fn beacon_cmd(options: BeaconCommandOptions) {
         BeaconCommand::Init(options) => init_cmd(options).await,
         BeaconCommand::Deploy(options) => deploy_cmd(options).await,
         BeaconCommand::Wallet(options) => wallet_cmd(options),
+        BeaconCommand::Dev(options) => dev_cmd(options).await,
     }
 }

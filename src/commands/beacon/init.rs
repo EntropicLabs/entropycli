@@ -9,8 +9,6 @@ use crate::{
 use clap::Parser;
 use dialoguer::Confirm;
 
-use console::style;
-
 #[derive(Debug, Parser, Clone)]
 pub struct InitCommandOptions {
     /// Optional path to the configuration file
@@ -30,7 +28,7 @@ pub async fn init_cmd(options: InitCommandOptions) {
 
     println!(
         "{}",
-        style(format!("entropy init v{}", env!("CARGO_PKG_VERSION"))).bold()
+        dialoguer::console::style(format!("entropy beacon init v{}", env!("CARGO_PKG_VERSION"))).bold()
     );
 
     let mut prompt = "Create new config file?";

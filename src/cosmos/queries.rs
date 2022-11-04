@@ -1,5 +1,6 @@
-use super::{wallet::Wallet, response::TxResponse};
+use super::{network::Network, response::TxResponse, wallet::Wallet};
 
+use serde::Serialize;
 use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum QueryError {
@@ -56,7 +57,6 @@ impl Wallet {
         Ok(height)
     }
 
-
     pub async fn wait_for_hash(&self, tx_hash: String) -> Result<TxResponse, QueryError> {
         loop {
             let res = self
@@ -67,8 +67,8 @@ impl Wallet {
 
             let res = res.json::<serde_json::Value>().await?;
 
-            if res["code"].as_u64().map_or(false, |c| c==5) {
-                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            if res["code"].as_u64().map_or(false, |c| c == 5) {
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                 continue;
             }
 
@@ -76,5 +76,28 @@ impl Wallet {
                 .map_err(|e| QueryError::ParseError(e.to_string()))?;
             return Ok(res);
         }
+    }
+}
+
+impl Network {
+    pub async fn query(
+        &self,
+        address: String,
+        query: impl Serialize,
+    ) -> Result<serde_json::Value, QueryError> {
+        let path = format!(
+            "cosmwasm/wasm/v1/contract/{address}/smart/{query_data}",
+            address = address,
+            query_data = base64::encode(
+                serde_json::to_string(&query).map_err(|e| QueryError::ParseError(e.to_string()))?
+            )
+        );
+        let response = self.get(&path).await?;
+        let json: serde_json::Value = response.json().await?;
+        if json["code"].as_u64().is_some() {
+            return Err(QueryError::ParseError(json["message"].to_string()));
+        }
+
+        Ok(json["data"].clone())
     }
 }

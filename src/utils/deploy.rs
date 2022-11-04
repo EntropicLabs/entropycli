@@ -1,10 +1,10 @@
-use std::time::Duration;
+use std::{str::FromStr, time::Duration};
 
 use cosmrs::cosmwasm::{
     AccessConfig, AccessType, MsgInstantiateContract, MsgStoreCode, MsgStoreCodeResponse,
 };
+use cosmwasm_std::{Decimal, Uint128};
 use indicatif::ProgressBar;
-use serde_json::json;
 
 use crate::{
     commands::beacon::project_config::ProjectConfig,
@@ -13,8 +13,14 @@ use crate::{
     utils::CLITheme,
 };
 
+use entropy_beacon_cosmos::{beacon::BEACON_BASE_GAS, msg::InstantiateMsg};
+
 #[allow(clippy::too_many_lines)]
-pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, config: &mut ProjectConfig) {
+pub async fn deploy_beacon(
+    network: Option<String>,
+    wallet: Option<String>,
+    config: &mut ProjectConfig,
+) {
     let theme = CLITheme::default();
     let mut network = match config.get_network(&network) {
         Ok((_, Some(network))) => network,
@@ -94,7 +100,7 @@ pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, conf
         std::process::exit(1);
     });
     pb.set_message("Downloading latest release...");
-    let download_path = std::env::temp_dir().join("mock_beacon.wasm");
+    let download_path = std::env::temp_dir().join("beacon.wasm");
     let wasm_file = download_file(wasm_download_url, download_path)
         .await
         .unwrap_or_else(|err| {
@@ -121,7 +127,7 @@ pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, conf
         }),
     };
 
-    let hash = wallet.broadcast_msg(msg).await.unwrap_or_else(|err| {
+    let hash = wallet.broadcast_msg(msg, None).await.unwrap_or_else(|err| {
         pb.set_style(CLITheme::failed_spinner());
         pb.set_prefix("✗");
         pb.finish_with_message(format!("{} {}", "Error uploading beacon contract:", err));
@@ -148,22 +154,36 @@ pub async fn deploy_beacon(network: Option<String>, wallet: Option<String>, conf
         std::process::exit(1);
     });
 
-    pb.set_message("Instantiating mock beacon contract...");
+    pb.set_message("Instantiating beacon contract in test mode...");
+
+    let protocol_fee = Uint128::from(BEACON_BASE_GAS)
+        * Decimal::from_str(wallet.network.gas_info.gas_price.to_string().as_str()).unwrap();
+    #[allow(clippy::cast_possible_truncation)]
+    let instantiate_msg = InstantiateMsg {
+        whitelist_deposit_amt: Uint128::zero(),
+        refund_increment_amt: Uint128::zero(),
+        key_activation_delay: 0,
+        protocol_fee: protocol_fee.u128() as u64,
+        submitter_share: 100,
+        native_denom: wallet.network.gas_info.denom.clone(),
+        whitelisted_keys: vec![],
+        belief_gas_price: Decimal::percent(15),
+        permissioned: false,
+        test_mode: true,
+    };
+
     let msg = MsgInstantiateContract {
         sender: wallet.address.clone(),
         admin: Some(wallet.address.clone()),
         code_id: res.code_id,
         label: Some("Entropy Beacon (MOCK)".to_string()),
-        msg: json!({
-            "protocol_fee": 0,
-            "native_denom": wallet.network.gas_info.denom.clone(),
-        })
-        .to_string()
-        .into_bytes(),
+        msg: serde_json::to_string(&instantiate_msg)
+            .unwrap()
+            .into_bytes(),
         funds: vec![],
     };
 
-    let hash = wallet.broadcast_msg(msg).await.unwrap_or_else(|err| {
+    let hash = wallet.broadcast_msg(msg, None).await.unwrap_or_else(|err| {
         pb.set_style(CLITheme::failed_spinner());
         pb.set_prefix("✗");
         pb.finish_with_message(format!(

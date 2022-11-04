@@ -6,7 +6,11 @@ mod types;
 mod utils;
 
 use clap::{Parser, Subcommand};
-use commands::{beacon::{BeaconCommandOptions, beacon_cmd}, network::network_cmd};
+use commands::{
+    beacon::{beacon_cmd, BeaconCommandOptions},
+    network::network_cmd,
+    worker::{worker_cmd, WorkerCommandOptions},
+};
 
 use crate::commands::network::NetworkCommandOptions;
 
@@ -26,6 +30,8 @@ pub enum Command {
     Network(NetworkCommandOptions),
     #[clap(about = "Manage local beacon projects")]
     Beacon(BeaconCommandOptions),
+    #[clap(about = "Manage worker deployments")]
+    Worker(WorkerCommandOptions),
 }
 
 #[tokio::main]
@@ -34,5 +40,6 @@ async fn main() {
     match args.command {
         Command::Network(options) => network_cmd(options),
         Command::Beacon(options) => beacon_cmd(options).await,
+        Command::Worker(options) => worker_cmd(options).await,
     }
 }

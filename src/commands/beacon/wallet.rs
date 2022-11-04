@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use clap::{Parser, Subcommand};
-use console::style;
 use dialoguer::Select;
 
 use crate::{
@@ -49,7 +48,7 @@ pub enum WalletCommand {
 pub fn wallet_cmd(options: WalletCommandOptions) {
     println!(
         "{}",
-        style(format!("entropy wallet v{}", env!("CARGO_PKG_VERSION"))).bold()
+        dialoguer::console::style(format!("entropy beacon wallet v{}", env!("CARGO_PKG_VERSION"))).bold()
     );
 
     match options.command {

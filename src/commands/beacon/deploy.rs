@@ -1,5 +1,4 @@
 use clap::Parser;
-use console::style;
 
 use crate::{
     utils::{config::ConfigType, CLITheme},
@@ -24,7 +23,7 @@ pub async fn deploy_cmd(options: DeployCommandOptions) {
     let theme = CLITheme::default();
     println!(
         "{}",
-        style(format!("entropy deploy v{}", env!("CARGO_PKG_VERSION"))).bold()
+        dialoguer::console::style(format!("entropy beacon deploy v{}", env!("CARGO_PKG_VERSION"))).bold()
     );
 
     let config = ConfigUtils::load(&options.config).unwrap_or_else(|e| {
