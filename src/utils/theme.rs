@@ -1,6 +1,6 @@
 use std::fmt;
 
-use console::Style;
+use dialoguer::console::Style;
 use dialoguer::theme::Theme;
 use indicatif::ProgressStyle;
 

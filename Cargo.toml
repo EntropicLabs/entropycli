@@ -1,7 +1,21 @@
 [package]
-name = "entropy"
-version = "0.1.0"
+name = "entropycli"
+version = "1.0.0"
 edition = "2021"
+
+authors = ["Amit Prasad <mail@amitprasad.dev>"]
+description = "Entropy CLI for developing using the Entropic Labs Entropy Beacon"
+license = "Apache-2.0"
+repository = "https://github.com/EntropicLabs/entropycli"
+homepage = "https://entropiclabs.io/beacon"
+readme = "README.md"
+keywords = ["entropy", "beacon", "cosmos", "cosmwasm", "blockchain", "cli"]
+categories = ["command-line-utilities"]
+documentation = "https://entropiclabs.io/beacon/docs"
+
+[[bin]]
+name = "entropy"
+path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -10,8 +24,6 @@ base64 = "0.13.0"
 bip32 = "0.4.0"
 bip39 = "1.0.1"
 clap = { version = "3.2.22", features = ["derive"] }
-colored = "2.0.0"
-console = "0.15.2"
 cosmrs = { version = "0.9.0", features = ["cosmwasm"] }
 dialoguer = "0.10.2"
 ecvrf-rs = "1.0.0"

@@ -66,6 +66,8 @@ pub async fn dev_cmd(options: DevCommandOptions) {
 
     println!("{}\n", theme.dimmed.apply_to("Starting dev mode..."));
 
+    let mut seen_requests = vec![];
+
     loop {
         std::thread::sleep(std::time::Duration::from_millis(200));
         let active_requests = beacon
@@ -104,8 +106,13 @@ pub async fn dev_cmd(options: DevCommandOptions) {
                     message_bytes: entropy.to_vec(),
                     proof_bytes: vec![],
                 };
+                
+                print!("Entropy: \"");
+                for x in entropy {
+                    print!("{:02x}", x);
+                }
+                println!("\"");
 
-                println!("\tEntropy: \"{:x?}\"", entropy);
                 let total_callback_gas = BEACON_BASE_GAS
                     + active_requests
                         .iter()
@@ -189,7 +196,29 @@ pub async fn dev_cmd(options: DevCommandOptions) {
                     theme.highlight.apply_to(res.txhash.to_string())
                 );
             }
-            2 => {}
+            2 => {
+                active_requests
+                    .iter()
+                    .filter(|r| !&seen_requests.contains(&r.id))
+                    .for_each(|r| {
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&r).unwrap_or_else(|e| {
+                                println!(
+                                    "{} {}",
+                                    theme.error.apply_to("Error serializing request:"),
+                                    theme.highlight.apply_to(e)
+                                );
+                                std::process::exit(1);
+                            })
+                        );
+                    });
+                for r in &active_requests {
+                    if !seen_requests.contains(&r.id) {
+                        seen_requests.push(r.id);
+                    }
+                }
+            }
             _ => unreachable!(),
         };
     }

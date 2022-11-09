@@ -1,9 +1,10 @@
 use cosmrs::tx::{
     mode_info::Single, AuthInfo, Body, Fee, Gas, ModeInfo, Msg, SignDoc, SignMode, SignerInfo,
 };
+
 use serde_json::json;
 
-use super::{queries::QueryError, utils::mul_gas_float, wallet::Wallet};
+use super::{queries::QueryError, response::TxResponse, utils::mul_gas_float, wallet::Wallet};
 
 use thiserror::Error;
 
@@ -20,6 +21,8 @@ pub enum TxError {
     ChainID(String),
     #[error("Out of gas")]
     OutOfGas,
+    #[error("Transaction failed {:?}", .0)]
+    TxFailed(TxResponse),
 }
 
 pub const HEIGHT_TIMEOUT_INTERVAL: u32 = 10;

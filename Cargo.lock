@@ -204,17 +204,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "colored"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3616f750b84d8f0de8a58bda93e08e2a81ad3f523089b05f1dffecab48c6cbd"
-dependencies = [
- "atty",
- "lazy_static",
- "winapi",
-]
-
-[[package]]
 name = "console"
 version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -546,15 +535,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "entropy"
-version = "0.1.0"
+name = "entropy_beacon_cosmos"
+version = "2.0.0"
+dependencies = [
+ "cosmwasm-std",
+ "ecvrf-rs",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "entropycli"
+version = "1.0.0"
 dependencies = [
  "base64",
  "bip32",
  "bip39",
  "clap",
- "colored",
- "console",
  "cosmrs",
  "cosmwasm-std",
  "dialoguer",
@@ -568,16 +565,6 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
-]
-
-[[package]]
-name = "entropy_beacon_cosmos"
-version = "1.1.2"
-dependencies = [
- "cosmwasm-std",
- "ecvrf-rs",
- "schemars",
- "serde",
 ]
 
 [[package]]

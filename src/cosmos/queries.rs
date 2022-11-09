@@ -1,4 +1,4 @@
-use super::{network::Network, response::TxResponse, wallet::Wallet};
+use super::{network::Network, response::TxResponse, wallet::Wallet, tx::TxError};
 
 use serde::Serialize;
 use thiserror::Error;
@@ -57,7 +57,7 @@ impl Wallet {
         Ok(height)
     }
 
-    pub async fn wait_for_hash(&self, tx_hash: String) -> Result<TxResponse, QueryError> {
+    pub async fn wait_for_hash(&self, tx_hash: String) -> Result<TxResponse, TxError> {
         loop {
             let res = self
                 .network
@@ -74,6 +74,10 @@ impl Wallet {
 
             let res = serde_json::from_value::<TxResponse>(res["tx_response"].clone())
                 .map_err(|e| QueryError::ParseError(e.to_string()))?;
+
+            if res.code != 0 {
+                return Err(TxError::TxFailed(res));
+            }
             return Ok(res);
         }
     }
