@@ -3,14 +3,14 @@
 
 use cosmrs::tx::Gas;
 use ecvrf_rs::{decode_hex, Proof};
-use entropy_beacon_cosmos::{provide::ActiveRequestsResponse, beacon::BEACON_BASE_GAS};
+use entropy_beacon_cosmos::beacon::BEACON_BASE_GAS;
 
 use crate::{
     cosmos::{utils::mul_gas_float, wallet::Wallet},
     utils::{
         beacon_interface::Beacon,
         config::{ConfigType, ConfigUtils},
-        CLITheme,
+        webhook, CLITheme,
     },
 };
 
@@ -22,7 +22,7 @@ pub async fn start_cmd() {
         dialoguer::console::style(format!("entropy worker v{}", env!("CARGO_PKG_VERSION"))).bold()
     );
     let config = ConfigUtils::load(&"config.json").unwrap_or_else(|e| {
-        println!(
+        eprintln!(
             "{} {}",
             theme.error.apply_to("Error loading config file: "),
             theme.error.apply_to(e.to_string())
@@ -32,7 +32,7 @@ pub async fn start_cmd() {
     let config = if let ConfigType::Worker(config) = config {
         config
     } else {
-        println!(
+        eprintln!(
             "{}",
             theme
                 .error
@@ -42,7 +42,7 @@ pub async fn start_cmd() {
     };
 
     if config.registered_keys.is_empty() {
-        println!(
+        eprintln!(
             "{}",
             theme.error.apply_to("No keys registered, please create and whitelist keys using entropycli, or add existing whitelisted keys to the config file")
         );
@@ -51,7 +51,7 @@ pub async fn start_cmd() {
 
     let network_name = config.default_network.unwrap_or_else(||
         std::env::var("NETWORK").unwrap_or_else(|_|{
-            println!(
+            eprintln!(
                 "{}",
                 theme.error.apply_to("No default network set, please set the default network in the config file, or set the NETWORK environment variable")
             );
@@ -60,30 +60,40 @@ pub async fn start_cmd() {
     );
 
     let network_info = config.networks.get(&network_name).unwrap_or_else(|| {
-        println!(
+        eprintln!(
             "{} {}, {}",
-            theme.error.apply_to("No network configuration found with the name"),
+            theme
+                .error
+                .apply_to("No network configuration found with the name"),
             theme.error.apply_to(&network_name),
-            theme.error.apply_to("please add the network to the config file manually or with entropycli")
+            theme
+                .error
+                .apply_to("please add the network to the config file manually or with entropycli")
         );
         std::process::exit(1);
     });
 
     let gas_info = network_info.network.gas_info.clone();
 
-    let beacon_address = network_info.network.deployed_beacon_address.clone().unwrap_or_else(|| {
-        println!(
-            "{} {} {}",
-            theme.error.apply_to("No beacon address found for network"),
-            theme.error.apply_to(&network_name),
-            theme.error.apply_to("please add the beacon address to the config file manually or with entropycli")
-        );
-        std::process::exit(1);
-    });
+    let beacon_address = network_info
+        .network
+        .deployed_beacon_address
+        .clone()
+        .unwrap_or_else(|| {
+            eprintln!(
+                "{} {} {}",
+                theme.error.apply_to("No beacon address found for network"),
+                theme.error.apply_to(&network_name),
+                theme.error.apply_to(
+                    "please add the beacon address to the config file manually or with entropycli"
+                )
+            );
+            std::process::exit(1);
+        });
 
     let mnemonic = network_info.signer_mnemonic.clone().unwrap_or_else(||
         std::env::var("MNEMONIC").unwrap_or_else(|_|{
-            println!(
+            eprintln!(
                 "{}",
                 theme.error.apply_to("No mnemonic set, please set the mnemonic in the config file, or set the MNEMONIC environment variable")
             );
@@ -94,7 +104,7 @@ pub async fn start_cmd() {
     let beacon = Beacon::new(
         network_info.network.clone(),
         Wallet::new(mnemonic, network_info.network.clone()).unwrap_or_else(|_| {
-            println!(
+            eprintln!(
                 "{}",
                 theme.error.apply_to("Failed to create wallet from mnemonic, please check the mnemonic in the config file")
             );
@@ -103,69 +113,97 @@ pub async fn start_cmd() {
         beacon_address,
     );
 
+    let webhook_url = std::env::var("WEBHOOK_URL").ok();
+
     let mut current_key = 0;
     loop {
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
         let active_requests = beacon.fetch_active_requests().await;
         if active_requests.is_err() {
-            println!(
-                "[WARN] Failed to fetch active requests: {}",
+            let message = format!(
+                "Failed to fetch active requests: {}",
                 active_requests.err().unwrap()
+            );
+            eprintln!("[WARN] {}", message);
+            if let Some(webhook_url) = &webhook_url {
+                let res = webhook::error(webhook_url, message).await;
+                if res.is_err() {
+                    eprintln!("[WARN] Failed to send webhook: {}", res.err().unwrap());
+                }
+            }
+            continue;
+        }
+        let active_requests = active_requests.unwrap();
+        let requests = active_requests.requests;
+        if requests.is_empty() {
+            continue;
+        }
+        let total_payout = requests
+            .iter()
+            .map(|r| r.submitted_bounty_amount.u128())
+            .sum::<u128>();
+
+        let total_callback_gas =
+            BEACON_BASE_GAS + requests.iter().map(|r| r.callback_gas_limit).sum::<u64>();
+
+        let total_gas_cost = mul_gas_float(total_callback_gas, gas_info.gas_price).value();
+
+        if total_payout < total_gas_cost.into() {
+            eprintln!(
+                "[WARN] Not enough funds to pay for gas, skipping ({} < {})",
+                total_payout, total_gas_cost
             );
             continue;
         }
-        match active_requests {
-            Err(e) => println!("[WARN] Failed to fetch active requests: {}", e),
-            Ok(ActiveRequestsResponse { requests }) => {
-                if requests.is_empty() {
-                    continue;
-                }
-                let total_payout = requests
-                    .iter()
-                    .map(|r| r.submitted_bounty_amount.u128())
-                    .sum::<u128>();
 
-                let total_callback_gas =
-                BEACON_BASE_GAS + requests.iter().map(|r| r.callback_gas_limit).sum::<u64>();
+        let last_entropy = beacon.fetch_last_entropy().await;
+        if last_entropy.is_err() {
+            let message = format!(
+                "Failed to fetch last entropy: {}",
+                last_entropy.err().unwrap()
+            );
+            eprintln!("[WARN] {}", message);
 
-                let total_gas_cost = mul_gas_float(total_callback_gas, gas_info.gas_price).value();
-
-                if total_payout < total_gas_cost.into() {
-                    println!(
-                        "[WARN] Not enough funds to pay for gas, skipping ({} < {})",
-                        total_payout, total_gas_cost
-                    );
-                    continue;
-                }
-
-                let last_entropy = beacon.fetch_last_entropy().await;
-                if last_entropy.is_err() {
-                    println!(
-                        "[WARN] Failed to fetch last entropy: {}",
-                        last_entropy.err().unwrap()
-                    );
-                    continue;
-                }
-                let last_entropy = decode_hex(last_entropy.unwrap().entropy.as_str()).unwrap();
-                let secret_key = &config.registered_keys[current_key];
-                let proof = Proof::new(secret_key, &last_entropy).unwrap();
-                println!(
-                    "[INFO] Submitting entropy with proof {}",
-                    serde_json::to_string(&proof).unwrap()
-                );
-                let res = beacon
-                    .submit_entropy(&proof, Gas::from(total_callback_gas))
-                    .await;
+            if let Some(webhook_url) = &webhook_url {
+                let res = webhook::error(webhook_url, message).await;
                 if res.is_err() {
-                    println!("[WARN] Failed to submit entropy: {}", res.err().unwrap());
-                    continue;
+                    eprintln!("[WARN] Failed to send webhook: {}", res.err().unwrap());
                 }
-                let res = res.unwrap();
-                println!("[INFO] Submitted entropy with hash {}", res.txhash,);
-
-                current_key = (current_key + 1) % config.registered_keys.len();
+            }
+            continue;
+        }
+        let last_entropy = decode_hex(last_entropy.unwrap().entropy.as_str()).unwrap();
+        let secret_key = &config.registered_keys[current_key];
+        let proof = Proof::new(secret_key, &last_entropy).unwrap();
+        println!(
+            "[INFO] Submitting entropy with proof {}",
+            serde_json::to_string(&proof).unwrap()
+        );
+        let res = beacon
+            .submit_entropy(&proof, Gas::from(total_callback_gas), vec![])
+            .await;
+        if res.is_err() {
+            let message = format!("Failed to submit entropy: {}", res.err().unwrap());
+            eprintln!("[WARN] {}", message);
+            if let Some(webhook_url) = &webhook_url {
+                let res = webhook::error(webhook_url, message).await;
+                if res.is_err() {
+                    eprintln!("[WARN] Failed to send webhook: {}", res.err().unwrap());
+                }
+            }
+            continue;
+        }
+        let res = res.unwrap();
+        let message = format!("Submitted entropy with hash {}", res.txhash,);
+        println!("[INFO] {}", message);
+        if let Some(webhook_url) = &webhook_url {
+            let res = webhook::info(webhook_url, message).await;
+            if res.is_err() {
+                eprintln!("[WARN] Failed to send webhook: {}", res.err().unwrap());
             }
         }
+
+        current_key = (current_key + 1) % config.registered_keys.len();
     }
 }

@@ -16,10 +16,10 @@ pub struct ConfigUtils;
 impl ConfigUtils {
     pub fn save<T, P>(config: &T, path: &P) -> Result<(), std::io::Error>
     where
-        T: Sized + Serialize,
+        T: Sized + Serialize + Clone + Config,
         P: AsRef<Path>,
     {
-        let config = serde_json::to_string_pretty(config)?;
+        let config = serde_json::to_string_pretty(&config.clone().wrap())?;
         std::fs::write(path, config)?;
         Ok(())
     }
@@ -31,5 +31,15 @@ impl ConfigUtils {
         let config = std::fs::read_to_string(path)?;
         let config = serde_json::from_str::<ConfigType>(&config)?;
         Ok(config)
+    }
+}
+
+pub trait Config {
+    fn wrap(self) -> ConfigType;
+}
+
+impl Config for ConfigType {
+    fn wrap(self) -> ConfigType {
+        self
     }
 }

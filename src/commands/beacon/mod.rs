@@ -1,15 +1,17 @@
 use clap::{Parser, Subcommand};
 
 pub mod deploy;
+pub mod dev;
 pub mod init;
 pub mod project_config;
 pub mod wallet;
-pub mod dev;
 
-use deploy::{DeployCommandOptions, deploy_cmd};
-use init::{InitCommandOptions, init_cmd};
-use wallet::{WalletCommandOptions, wallet_cmd};
-use dev::{DevCommandOptions, dev_cmd};
+use deploy::{deploy_cmd, DeployCommandOptions};
+use dev::{dev_cmd, DevCommandOptions};
+use init::{init_cmd, InitCommandOptions};
+use wallet::{wallet_cmd, WalletCommandOptions};
+
+use super::network::{network_cmd, NetworkCommandOptions};
 
 #[derive(Debug, Parser, Clone)]
 pub struct BeaconCommandOptions {
@@ -27,6 +29,8 @@ pub enum BeaconCommand {
     Wallet(WalletCommandOptions),
     #[clap(about = "Run a local development instance of workers")]
     Dev(DevCommandOptions),
+    #[clap(about = "Manage networks (alias for `entropy network`)")]
+    Network(NetworkCommandOptions),
 }
 
 pub async fn beacon_cmd(options: BeaconCommandOptions) {
@@ -35,5 +39,6 @@ pub async fn beacon_cmd(options: BeaconCommandOptions) {
         BeaconCommand::Deploy(options) => deploy_cmd(options).await,
         BeaconCommand::Wallet(options) => wallet_cmd(options),
         BeaconCommand::Dev(options) => dev_cmd(options).await,
+        BeaconCommand::Network(options) => network_cmd(options),
     }
 }

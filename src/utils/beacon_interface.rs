@@ -3,6 +3,7 @@ use std::str::FromStr;
 use cosmrs::cosmwasm::MsgExecuteContract;
 use cosmrs::tx::Gas;
 use cosmrs::AccountId;
+use cosmwasm_std::Uint128;
 use ecvrf_rs::{Proof, PublicKey, SecretKey};
 use entropy_beacon_cosmos::msg::{ExecuteMsg as BeaconExecuteMsg, QueryMsg as BeaconQueryMsg};
 use entropy_beacon_cosmos::provide::{
@@ -88,10 +89,10 @@ impl Beacon {
         .map_err(|e| QueryError::ParseError(e.to_string()))
     }
 
-    pub async fn submit_entropy(&self, proof: &Proof, gas: Gas) -> Result<TxResponse, TxError> {
+    pub async fn submit_entropy(&self, proof: &Proof, gas: Gas, request_ids: Vec<Uint128>) -> Result<TxResponse, TxError> {
         let msg = SubmitEntropyMsg {
             proof: proof.clone(),
-            request_ids: vec![],
+            request_ids,
         };
 
         let msg = serde_json::to_string(&BeaconExecuteMsg::SubmitEntropy(msg)).unwrap();

@@ -5,3 +5,4 @@ pub mod config;
 pub mod beacon_interface;
 pub use theme::CLITheme;
 pub mod wasm_fetch;
+pub mod webhook;

@@ -3,7 +3,7 @@ use std::{io::Cursor, path::PathBuf};
 use thiserror::Error;
 
 pub const LATEST_RELEASE_URL: &str =
-    "https://api.github.com/repos/EntropicLabs/mock_beacon/releases/latest";
+    "https://api.github.com/repos/EntropicLabs/entropy_beacon_contracts/releases/latest";
 
 #[derive(Debug, Error)]
 pub enum FetchError {

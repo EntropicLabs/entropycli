@@ -17,13 +17,20 @@ pub struct DeployCommandOptions {
     /// Wallet to use (defined in config). Optional if default wallet is set in config
     #[clap(short, long)]
     pub wallet: Option<String>,
+    /// Optional path to the wasm file to deploy, if not provided will download from github
+    #[clap(long)]
+    pub wasm: Option<String>,
 }
 
 pub async fn deploy_cmd(options: DeployCommandOptions) {
     let theme = CLITheme::default();
     println!(
         "{}",
-        dialoguer::console::style(format!("entropy beacon deploy v{}", env!("CARGO_PKG_VERSION"))).bold()
+        dialoguer::console::style(format!(
+            "entropy beacon deploy v{}",
+            env!("CARGO_PKG_VERSION")
+        ))
+        .bold()
     );
 
     let config = ConfigUtils::load(&options.config).unwrap_or_else(|e| {
@@ -44,7 +51,7 @@ pub async fn deploy_cmd(options: DeployCommandOptions) {
         std::process::exit(1);
     };
 
-    deploy_beacon(options.network, options.wallet, &mut config).await;
+    deploy_beacon(options.network, options.wallet, options.wasm, &mut config).await;
 
     ConfigUtils::save(&config, &options.config).unwrap_or_else(|e| {
         println!(

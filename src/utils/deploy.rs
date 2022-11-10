@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Duration};
+use std::{path::PathBuf, str::FromStr, time::Duration};
 
 use cosmrs::cosmwasm::{
     AccessConfig, AccessType, MsgInstantiateContract, MsgStoreCode, MsgStoreCodeResponse,
@@ -19,11 +19,12 @@ use entropy_beacon_cosmos::{beacon::BEACON_BASE_GAS, msg::InstantiateMsg};
 pub async fn deploy_beacon(
     network: Option<String>,
     wallet: Option<String>,
+    wasm_file: Option<impl Into<PathBuf>>,
     config: &mut ProjectConfig,
 ) {
     let theme = CLITheme::default();
-    let mut network = match config.get_network(&network) {
-        Ok((_, Some(network))) => network,
+    let (network_name, network) = match config.get_network(&network) {
+        Ok((network_name, Some(network))) => (network_name, network),
         Ok((name, None)) => {
             println!(
                 "{} {} {}",
@@ -92,23 +93,27 @@ pub async fn deploy_beacon(
     let pb = ProgressBar::new(1);
     pb.enable_steady_tick(Duration::from_millis(80));
     pb.set_style(CLITheme::spinner());
-    pb.set_message("Fetching latest release...");
-    let wasm_download_url = fetch_release_url().await.unwrap_or_else(|err| {
-        pb.set_style(CLITheme::failed_spinner());
-        pb.set_prefix("✗");
-        pb.finish_with_message(format!("{} {}", "Error fetching latest release:", err));
-        std::process::exit(1);
-    });
-    pb.set_message("Downloading latest release...");
-    let download_path = std::env::temp_dir().join("beacon.wasm");
-    let wasm_file = download_file(wasm_download_url, download_path)
-        .await
-        .unwrap_or_else(|err| {
+    let wasm_file = if let Some(wasm_file) = wasm_file {
+        wasm_file.into()
+    } else {
+        pb.set_message("Fetching latest release...");
+        let wasm_download_url = fetch_release_url().await.unwrap_or_else(|err| {
             pb.set_style(CLITheme::failed_spinner());
             pb.set_prefix("✗");
-            pb.finish_with_message(format!("{} {}", "Error downloading latest release:", err));
+            pb.finish_with_message(format!("{} {}", "Error fetching latest release:", err));
             std::process::exit(1);
         });
+        pb.set_message("Downloading latest release...");
+        let download_path = std::env::temp_dir().join("beacon.wasm");
+        download_file(wasm_download_url, download_path)
+            .await
+            .unwrap_or_else(|err| {
+                pb.set_style(CLITheme::failed_spinner());
+                pb.set_prefix("✗");
+                pb.finish_with_message(format!("{} {}", "Error downloading latest release:", err));
+                std::process::exit(1);
+            })
+    };
     pb.set_message("Uploading beacon contract...");
 
     let wasm_bytes = std::fs::read(wasm_file).unwrap_or_else(|err| {
@@ -223,6 +228,10 @@ pub async fn deploy_beacon(
         "Mock beacon contract instantiated at address:",
         theme.highlight.apply_to(deployed_address)
     ));
-
-    network.deployed_beacon_address = Some(deployed_address.to_string());
+    config
+        .get_network_mut(&Some(network_name))
+        .unwrap()
+        .1
+        .unwrap()
+        .deployed_beacon_address = Some(deployed_address.to_string());
 }

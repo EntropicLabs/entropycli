@@ -1,5 +1,6 @@
 use clap::Parser;
 use cosmrs::tx::Gas;
+use cosmwasm_std::Uint128;
 use dialoguer::Select;
 use ecvrf_rs::Proof;
 use entropy_beacon_cosmos::beacon::BEACON_BASE_GAS;
@@ -88,11 +89,17 @@ pub async fn dev_cmd(options: DevCommandOptions) {
                 if active_requests.is_empty() {
                     continue;
                 }
+
+                let request_ids = active_requests
+                    .iter()
+                    .map(|r| r.id)
+                    .collect::<Vec<Uint128>>();
+
                 println!(
                     "Submitting entropy for requests: [{}]",
-                    active_requests
+                    request_ids
                         .iter()
-                        .map(|r| r.id.to_string())
+                        .map(std::string::ToString::to_string)
                         .collect::<Vec<String>>()
                         .join(", ")
                 );
@@ -106,7 +113,7 @@ pub async fn dev_cmd(options: DevCommandOptions) {
                     message_bytes: entropy.to_vec(),
                     proof_bytes: vec![],
                 };
-                
+
                 print!("Entropy: \"");
                 for x in entropy {
                     print!("{:02x}", x);
@@ -120,7 +127,7 @@ pub async fn dev_cmd(options: DevCommandOptions) {
                         .sum::<u64>();
 
                 let res = beacon
-                    .submit_entropy(&proof, Gas::from(total_callback_gas))
+                    .submit_entropy(&proof, Gas::from(total_callback_gas), request_ids)
                     .await;
                 if res.is_err() {
                     println!(
@@ -141,11 +148,17 @@ pub async fn dev_cmd(options: DevCommandOptions) {
                 if active_requests.is_empty() {
                     continue;
                 }
+
+                let request_ids = active_requests
+                    .iter()
+                    .map(|r| r.id)
+                    .collect::<Vec<Uint128>>();
+
                 println!(
                     "Submitting entropy for requests: [{}]",
-                    active_requests
+                    request_ids
                         .iter()
-                        .map(|r| r.id.to_string())
+                        .map(std::string::ToString::to_string)
                         .collect::<Vec<String>>()
                         .join(", ")
                 );
@@ -179,7 +192,7 @@ pub async fn dev_cmd(options: DevCommandOptions) {
                         .sum::<u64>();
 
                 let res = beacon
-                    .submit_entropy(&proof, Gas::from(total_callback_gas))
+                    .submit_entropy(&proof, Gas::from(total_callback_gas), request_ids)
                     .await;
                 if res.is_err() {
                     println!(

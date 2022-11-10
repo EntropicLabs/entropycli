@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     cosmos::network::Network,
-    utils::{config::ConfigUtils, user_prompts::create_network},
+    utils::{config::{ConfigUtils, Config, ConfigType}, user_prompts::create_network},
     utils::{user_prompts::create_wallet, CLITheme},
 };
 
@@ -86,5 +86,22 @@ impl ProjectConfig {
             name.clone(),
             self.networks.as_ref().and_then(|n| n.get(name)).cloned(),
         ))
+    }
+
+    pub fn get_network_mut(&mut self, name: &Option<String>) -> Result<(String, Option<&mut Network>), ()> {
+        let name = name
+            .as_ref()
+            .map_or(self.default_network.as_ref(), Some)
+            .ok_or(())?;
+        Ok((
+            name.clone(),
+            self.networks.as_mut().and_then(|n| n.get_mut(name)),
+        ))
+    }
+}
+
+impl Config for ProjectConfig {
+    fn wrap(self) -> ConfigType {
+        ConfigType::Project(self)
     }
 }
