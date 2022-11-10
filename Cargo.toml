@@ -9,7 +9,7 @@ license = "Apache-2.0"
 repository = "https://github.com/EntropicLabs/entropycli"
 homepage = "https://entropiclabs.io/beacon"
 readme = "README.md"
-keywords = ["entropy", "beacon", "cosmos", "cosmwasm", "blockchain", "cli"]
+keywords = ["entropy", "beacon", "cosmos", "cosmwasm", "entropic"]
 categories = ["command-line-utilities"]
 documentation = "https://entropiclabs.io/beacon/docs"
 
