@@ -1,5 +1,5 @@
 # EntropyCLI - Entropy Beacon Tooling
-EntropyCLI is a command line tool for interacting with the Entropy Beacon. Developers can use EntropyCLI to facilitate local development of applications that integrate with the Entropy Beacon.
+EntropyCLI is a command line tool for interacting with the Entropy Beacon. Developers can use EntropyCLI to facilitate local development of applications that integrate with the Entropy Beacon. Check out the [Documentation](https://entropiclabs.io/beacon/docs/quickstart) for more information.
 
 ## Installation
 Developers can get started with EntropyCLI by installing it with `cargo`:
