@@ -4,7 +4,7 @@ pub mod worker_config;
 pub mod keys;
 pub mod start;
 
-use start::{start_cmd};
+use start::{start_cmd, StartCommandOptions};
 use keys::{key_cmd, KeyCommandOptions};
 
 
@@ -19,12 +19,12 @@ pub enum WorkerCommand {
     #[clap(about = "Manage keys for a worker")]
     Keys(KeyCommandOptions),
     #[clap(about = "Start a worker")]
-    Start,
+    Start(StartCommandOptions),
 }
 
 pub async fn worker_cmd(options: WorkerCommandOptions) {
     match options.command {
         WorkerCommand::Keys(options) => key_cmd(&options),
-        WorkerCommand::Start => start_cmd().await,
+        WorkerCommand::Start(options) => start_cmd(options).await,
     }
 }

@@ -1,6 +1,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 
+use clap::Parser;
 use cosmrs::tx::Gas;
 use ecvrf_rs::{decode_hex, Proof};
 use entropy_beacon_cosmos::beacon::BEACON_BASE_GAS;
@@ -14,14 +15,26 @@ use crate::{
     },
 };
 
+#[derive(Debug, Parser, Clone)]
+pub struct StartCommandOptions {
+    /// Path to the configuration file
+    #[clap(short, long)]
+    #[clap(default_value = "config.json")]
+    config: String,
+    /// Verbose mode
+    #[clap(short, long)]
+    #[clap(default_value = "false")]
+    verbose: bool,
+}
+
 #[allow(clippy::too_many_lines)]
-pub async fn start_cmd() {
+pub async fn start_cmd(options: StartCommandOptions) {
     let theme = CLITheme::default();
     println!(
         "{}",
         dialoguer::console::style(format!("entropy worker v{}", env!("CARGO_PKG_VERSION"))).bold()
     );
-    let config = ConfigUtils::load(&"config.json").unwrap_or_else(|e| {
+    let config = ConfigUtils::load(&options.config).unwrap_or_else(|e| {
         eprintln!(
             "{} {}",
             theme.error.apply_to("Error loading config file: "),
@@ -157,6 +170,15 @@ pub async fn start_cmd() {
             continue;
         }
 
+        if options.verbose {
+            println!(
+                "[INFO] {} active requests, callback gas: {}, total payout: {}",
+                requests.len(),
+                total_callback_gas,
+                total_payout
+            );
+        }
+
         let last_entropy = beacon.fetch_last_entropy().await;
         if last_entropy.is_err() {
             let message = format!(
@@ -173,6 +195,14 @@ pub async fn start_cmd() {
             }
             continue;
         }
+
+        if options.verbose {
+            println!(
+                "[INFO] Last entropy: {}",
+                last_entropy.as_ref().unwrap().entropy
+            );
+        }
+
         let last_entropy = decode_hex(last_entropy.unwrap().entropy.as_str()).unwrap();
         let secret_key = &config.registered_keys[current_key];
         let proof = Proof::new(secret_key, &last_entropy).unwrap();
@@ -196,12 +226,17 @@ pub async fn start_cmd() {
         }
         let res = res.unwrap();
         let message = format!("Submitted entropy with hash {}", res.txhash,);
+
         println!("[INFO] {}", message);
         if let Some(webhook_url) = &webhook_url {
             let res = webhook::info(webhook_url, message).await;
             if res.is_err() {
                 eprintln!("[WARN] Failed to send webhook: {}", res.err().unwrap());
             }
+        }
+
+        if options.verbose {
+            println!("[INFO] Response: {:?}", res);
         }
 
         current_key = (current_key + 1) % config.registered_keys.len();
