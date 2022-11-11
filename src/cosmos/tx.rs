@@ -1,6 +1,6 @@
-use cosmrs::tx::{
+use cosmrs::{tx::{
     mode_info::Single, AuthInfo, Body, Fee, Gas, ModeInfo, Msg, SignDoc, SignMode, SignerInfo,
-};
+}, AccountId};
 
 use serde_json::json;
 
@@ -28,7 +28,7 @@ pub enum TxError {
 pub const HEIGHT_TIMEOUT_INTERVAL: u32 = 10;
 
 impl Wallet {
-    pub async fn broadcast_msg<M>(&self, msg: M, gas: Option<Gas>) -> Result<String, TxError>
+    pub async fn broadcast_msg<M>(&self, msg: M, gas: Option<Gas>, granter: Option<AccountId>) -> Result<String, TxError>
     where
         M: Msg,
     {
@@ -47,12 +47,15 @@ impl Wallet {
             None => self.estimate_gas(msg).await?,
         };
 
-        let auth_info = SignerInfo::single_direct(Some(self.pubkey), seq).auth_info(
-            self.network
-                .gas_info
-                .gas_to_fee(gas)
-                .map_err(|e| TxError::Parse(e.to_string()))?,
-        );
+        let mut fee = self
+            .network
+            .gas_info
+            .gas_to_fee(gas)
+            .map_err(|e| TxError::Parse(e.to_string()))?;
+
+        fee.granter = granter;
+
+        let auth_info = SignerInfo::single_direct(Some(self.pubkey), seq).auth_info(fee);
 
         let sign_doc = SignDoc::new(&body, &auth_info, &self.network.chain_id, acc_num)
             .map_err(|e| TxError::Parse(e.to_string()))?;

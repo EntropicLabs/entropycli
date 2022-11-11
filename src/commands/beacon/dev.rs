@@ -127,7 +127,7 @@ pub async fn dev_cmd(options: DevCommandOptions) {
                         .sum::<u64>();
 
                 let res = beacon
-                    .submit_entropy(&proof, Gas::from(total_callback_gas), request_ids)
+                    .submit_entropy(&proof, Gas::from(total_callback_gas), request_ids, None)
                     .await;
                 if res.is_err() {
                     println!(
@@ -192,7 +192,7 @@ pub async fn dev_cmd(options: DevCommandOptions) {
                         .sum::<u64>();
 
                 let res = beacon
-                    .submit_entropy(&proof, Gas::from(total_callback_gas), request_ids)
+                    .submit_entropy(&proof, Gas::from(total_callback_gas), request_ids, None)
                     .await;
                 if res.is_err() {
                     println!(

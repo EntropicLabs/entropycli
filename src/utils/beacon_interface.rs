@@ -76,7 +76,7 @@ impl Beacon {
 
         Ok(ActiveRequestsResponse { requests })
     }
-    
+
     pub async fn fetch_last_entropy(&self) -> Result<LastEntropyResponse, QueryError> {
         serde_json::from_value::<LastEntropyResponse>(
             self.network
@@ -89,7 +89,13 @@ impl Beacon {
         .map_err(|e| QueryError::ParseError(e.to_string()))
     }
 
-    pub async fn submit_entropy(&self, proof: &Proof, gas: Gas, request_ids: Vec<Uint128>) -> Result<TxResponse, TxError> {
+    pub async fn submit_entropy(
+        &self,
+        proof: &Proof,
+        gas: Gas,
+        request_ids: Vec<Uint128>,
+        granter: Option<AccountId>,
+    ) -> Result<TxResponse, TxError> {
         let msg = SubmitEntropyMsg {
             proof: proof.clone(),
             request_ids,
@@ -104,7 +110,7 @@ impl Beacon {
             funds: vec![],
         };
 
-        let hash = self.signer.broadcast_msg(msg, Some(gas)).await?;
+        let hash = self.signer.broadcast_msg(msg, Some(gas), granter).await?;
         let res = self.signer.wait_for_hash(hash).await?;
 
         Ok(res)

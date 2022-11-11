@@ -132,12 +132,15 @@ pub async fn deploy_beacon(
         }),
     };
 
-    let hash = wallet.broadcast_msg(msg, None).await.unwrap_or_else(|err| {
-        pb.set_style(CLITheme::failed_spinner());
-        pb.set_prefix("✗");
-        pb.finish_with_message(format!("{} {}", "Error uploading beacon contract:", err));
-        std::process::exit(1);
-    });
+    let hash = wallet
+        .broadcast_msg(msg, None, None)
+        .await
+        .unwrap_or_else(|err| {
+            pb.set_style(CLITheme::failed_spinner());
+            pb.set_prefix("✗");
+            pb.finish_with_message(format!("{} {}", "Error uploading beacon contract:", err));
+            std::process::exit(1);
+        });
     pb.set_message("Waiting for transaction to be included in block...");
     let res = wallet.wait_for_hash(hash).await.unwrap_or_else(|err| {
         pb.set_style(CLITheme::failed_spinner());
@@ -188,15 +191,18 @@ pub async fn deploy_beacon(
         funds: vec![],
     };
 
-    let hash = wallet.broadcast_msg(msg, None).await.unwrap_or_else(|err| {
-        pb.set_style(CLITheme::failed_spinner());
-        pb.set_prefix("✗");
-        pb.finish_with_message(format!(
-            "{} {}",
-            "Error instantiating mock beacon contract:", err
-        ));
-        std::process::exit(1);
-    });
+    let hash = wallet
+        .broadcast_msg(msg, None, None)
+        .await
+        .unwrap_or_else(|err| {
+            pb.set_style(CLITheme::failed_spinner());
+            pb.set_prefix("✗");
+            pb.finish_with_message(format!(
+                "{} {}",
+                "Error instantiating mock beacon contract:", err
+            ));
+            std::process::exit(1);
+        });
 
     pb.set_message("Waiting for transaction to be included in block...");
     let res = wallet.wait_for_hash(hash).await.unwrap_or_else(|err| {

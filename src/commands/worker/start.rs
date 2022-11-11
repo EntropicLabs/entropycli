@@ -1,8 +1,10 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::module_name_repetitions)]
 
+use std::str::FromStr;
+
 use clap::Parser;
-use cosmrs::tx::Gas;
+use cosmrs::{tx::Gas, AccountId};
 use ecvrf_rs::{decode_hex, Proof};
 use entropy_beacon_cosmos::beacon::BEACON_BASE_GAS;
 
@@ -25,6 +27,9 @@ pub struct StartCommandOptions {
     #[clap(short, long)]
     #[clap(default_value = "false")]
     verbose: bool,
+    /// Fee granter address
+    #[clap(long)]
+    fee_granter: Option<String>,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -128,6 +133,20 @@ pub async fn start_cmd(options: StartCommandOptions) {
 
     let webhook_url = std::env::var("WEBHOOK_URL").ok();
 
+    let fee_granter = options
+        .fee_granter
+        .map_or(std::env::var("FEE_GRANTER").ok(), Some)
+        .map(|fee_granter| {
+            AccountId::from_str(fee_granter.as_str()).unwrap_or_else(|_| {
+                eprintln!(
+                    "{} {}",
+                    theme.error.apply_to("Invalid fee granter address: "),
+                    theme.error.apply_to(fee_granter)
+                );
+                std::process::exit(1);
+            })
+        });
+
     let mut current_key = 0;
     loop {
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
@@ -211,7 +230,12 @@ pub async fn start_cmd(options: StartCommandOptions) {
             serde_json::to_string(&proof).unwrap()
         );
         let res = beacon
-            .submit_entropy(&proof, Gas::from(total_callback_gas), vec![])
+            .submit_entropy(
+                &proof,
+                Gas::from(total_callback_gas),
+                vec![],
+                fee_granter.clone(),
+            )
             .await;
         if res.is_err() {
             let message = format!("Failed to submit entropy: {}", res.err().unwrap());
