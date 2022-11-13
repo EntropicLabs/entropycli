@@ -164,8 +164,16 @@ pub async fn deploy_beacon(
 
     pb.set_message("Instantiating beacon contract in test mode...");
 
-    let protocol_fee = Uint128::from(BEACON_BASE_GAS)
-        * Decimal::from_str(wallet.network.gas_info.gas_price.to_string().as_str()).unwrap();
+    let subsidized_callbacks = wallet.network.subsidized_callbacks.unwrap_or(false);
+
+    let gas_price =
+        Decimal::from_str(wallet.network.gas_info.gas_price.to_string().as_str()).unwrap();
+
+    let protocol_fee = if subsidized_callbacks {
+        Uint128::zero()
+    } else {
+        Uint128::from(BEACON_BASE_GAS) * gas_price
+    };
     #[allow(clippy::cast_possible_truncation)]
     let instantiate_msg = InstantiateMsg {
         whitelist_deposit_amt: Uint128::zero(),
@@ -175,7 +183,7 @@ pub async fn deploy_beacon(
         submitter_share: 100,
         native_denom: wallet.network.gas_info.denom.clone(),
         whitelisted_keys: vec![],
-        belief_gas_price: Decimal::percent(15),
+        belief_gas_price: gas_price,
         permissioned: false,
         test_mode: true,
         subsidize_callbacks: wallet.network.subsidized_callbacks.unwrap_or(false),
