@@ -65,6 +65,17 @@ pub fn create_network() -> (String, Network) {
                     chain_prefix,
                 }
             };
+            let do_subsidized_callbacks = Select::with_theme(&theme)
+                .with_prompt("Subsidized Callbacks?")
+                .default(0)
+                .items(&["No", "Yes"])
+                .interact()
+                .unwrap();
+            let subsidized_callbacks = match do_subsidized_callbacks {
+                0 => Some(false),
+                1 => Some(true),
+                _ => None,
+            };
             (
                 name,
                 Network {
@@ -73,6 +84,7 @@ pub fn create_network() -> (String, Network) {
                     gas_info,
                     account_info,
                     deployed_beacon_address: None,
+                    subsidized_callbacks,
                 },
             )
         }

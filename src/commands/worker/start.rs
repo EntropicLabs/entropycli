@@ -147,7 +147,7 @@ pub async fn start_cmd(options: StartCommandOptions) {
             })
         });
 
-    let is_subsidized = network_info.subsidized_callbacks.unwrap_or(false);
+    let is_subsidized = network_info.network.subsidized_callbacks.unwrap_or(false);
 
     let mut current_key = 0;
     loop {

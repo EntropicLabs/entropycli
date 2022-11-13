@@ -178,6 +178,7 @@ pub async fn deploy_beacon(
         belief_gas_price: Decimal::percent(15),
         permissioned: false,
         test_mode: true,
+        subsidize_callbacks: wallet.network.subsidized_callbacks.unwrap_or(false),
     };
 
     let msg = MsgInstantiateContract {

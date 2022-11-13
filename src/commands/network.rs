@@ -89,7 +89,6 @@ fn new_network(config: &String) {
             let network = NetworkConfiguration {
                 network,
                 signer_mnemonic: mnemonic,
-                subsidized_callbacks: None,
             };
             cfg.networks.insert(name, network);
         }

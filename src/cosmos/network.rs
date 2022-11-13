@@ -17,6 +17,7 @@ pub struct Network {
     pub account_info: NetworkAccountInfo,
     pub gas_info: NetworkGasInfo,
     pub deployed_beacon_address: Option<String>,
+    pub subsidized_callbacks: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,6 +78,7 @@ impl Network {
                 gas_adjustment: 1.25,
             },
             deployed_beacon_address: None,
+            subsidized_callbacks: Some(false),
         }
     }
 
@@ -94,6 +96,7 @@ impl Network {
                 gas_adjustment: 1.25,
             },
             deployed_beacon_address: None,
+            subsidized_callbacks: Some(true),
         }
     }
 }
