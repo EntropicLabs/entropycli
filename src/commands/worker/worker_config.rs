@@ -12,6 +12,7 @@ pub struct NetworkConfiguration {
     #[serde(flatten)]
     pub network: Network,
     pub signer_mnemonic: Option<String>,
+    pub subsidized_callbacks: Option<bool>,
 }
 
 #[derive(Debug,Clone, Serialize, Deserialize, Default)]

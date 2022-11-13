@@ -147,6 +147,8 @@ pub async fn start_cmd(options: StartCommandOptions) {
             })
         });
 
+    let is_subsidized = network_info.subsidized_callbacks.unwrap_or(false);
+
     let mut current_key = 0;
     loop {
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
@@ -181,7 +183,7 @@ pub async fn start_cmd(options: StartCommandOptions) {
 
         let total_gas_cost = mul_gas_float(total_callback_gas, gas_info.gas_price).value();
 
-        if total_payout < total_gas_cost.into() {
+        if !is_subsidized && total_payout < total_gas_cost.into() {
             eprintln!(
                 "[WARN] Not enough funds to pay for gas, skipping ({} < {})",
                 total_payout, total_gas_cost
