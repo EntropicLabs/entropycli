@@ -2,7 +2,6 @@
 #![allow(clippy::module_name_repetitions)]
 mod commands;
 mod cosmos;
-mod types;
 mod utils;
 
 use clap::{Parser, Subcommand};

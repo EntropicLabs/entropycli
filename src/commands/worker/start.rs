@@ -149,6 +149,8 @@ pub async fn start_cmd(options: StartCommandOptions) {
 
     let is_subsidized = network_info.network.subsidized_callbacks.unwrap_or(false);
 
+    let filtered_errors = config.filtered_errors;
+
     let mut current_key = 0;
     loop {
         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
@@ -160,12 +162,7 @@ pub async fn start_cmd(options: StartCommandOptions) {
                 active_requests.err().unwrap()
             );
             eprintln!("[WARN] {}", message);
-            if let Some(webhook_url) = &webhook_url {
-                let res = webhook::error(webhook_url, message).await;
-                if res.is_err() {
-                    eprintln!("[WARN] Failed to send webhook: {}", res.err().unwrap());
-                }
-            }
+            send_webhook_error(message, &webhook_url, &filtered_errors);
             continue;
         }
         let active_requests = active_requests.unwrap();
@@ -207,13 +204,7 @@ pub async fn start_cmd(options: StartCommandOptions) {
                 last_entropy.err().unwrap()
             );
             eprintln!("[WARN] {}", message);
-
-            if let Some(webhook_url) = &webhook_url {
-                let res = webhook::error(webhook_url, message).await;
-                if res.is_err() {
-                    eprintln!("[WARN] Failed to send webhook: {}", res.err().unwrap());
-                }
-            }
+            send_webhook_error(message, &webhook_url, &filtered_errors);
             continue;
         }
 
@@ -242,24 +233,14 @@ pub async fn start_cmd(options: StartCommandOptions) {
         if res.is_err() {
             let message = format!("Failed to submit entropy: {}", res.err().unwrap());
             eprintln!("[WARN] {}", message);
-            if let Some(webhook_url) = &webhook_url {
-                let res = webhook::error(webhook_url, message).await;
-                if res.is_err() {
-                    eprintln!("[WARN] Failed to send webhook: {}", res.err().unwrap());
-                }
-            }
+            send_webhook_error(message, &webhook_url, &filtered_errors);
             continue;
         }
         let res = res.unwrap();
         let message = format!("Submitted entropy with hash {}", res.txhash,);
 
         println!("[INFO] {}", message);
-        if let Some(webhook_url) = &webhook_url {
-            let res = webhook::info(webhook_url, message).await;
-            if res.is_err() {
-                eprintln!("[WARN] Failed to send webhook: {}", res.err().unwrap());
-            }
-        }
+        send_webhook(message, &webhook_url);
 
         if options.verbose {
             println!("[INFO] Response: {:?}", res);
@@ -267,4 +248,33 @@ pub async fn start_cmd(options: StartCommandOptions) {
 
         current_key = (current_key + 1) % config.registered_keys.len();
     }
+}
+
+fn send_webhook(message: String, url: &Option<String>) {
+    let url = url.clone();
+    tokio::spawn(async move {
+        if let Some(webhook_url) = url {
+            let res = webhook::info(webhook_url, message).await;
+            if res.is_err() {
+                eprintln!("[WARN] Failed to send webhook: {}", res.err().unwrap());
+            }
+        }
+    });
+}
+
+fn send_webhook_error(message: String, url: &Option<String>, ignored: &Option<Vec<String>>) {
+    if let Some(ignored) = ignored {
+        if ignored.iter().any(|i| message.contains(i)) {
+            return;
+        }
+    }
+    let url = url.clone();
+    tokio::spawn(async move {
+        if let Some(webhook_url) = url {
+            let res = webhook::error(webhook_url, message).await;
+            if res.is_err() {
+                eprintln!("[WARN] Failed to send webhook: {}", res.err().unwrap());
+            }
+        }
+    });
 }
