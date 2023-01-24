@@ -1,4 +1,4 @@
-use super::{network::Network, response::TxResponse, wallet::Wallet, tx::TxError};
+use super::{network::Network, response::TxResponse, tx::TxError, wallet::Wallet};
 
 use serde::Serialize;
 use thiserror::Error;
@@ -99,7 +99,11 @@ impl Network {
         let response = self.get(&path).await?;
         let json: serde_json::Value = response.json().await?;
         if json["code"].as_u64().is_some() {
-            return Err(QueryError::ParseError(json["message"].to_string()));
+            return Err(QueryError::ParseError(format!(
+                "{}. Request: {}",
+                json["message"],
+                path
+            )));
         }
 
         Ok(json["data"].clone())

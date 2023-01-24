@@ -215,6 +215,7 @@ pub async fn start_cmd(options: StartCommandOptions) {
             );
         }
 
+        let request_ids = requests.iter().map(|r| r.id).collect::<Vec<_>>();
         let last_entropy = decode_hex(last_entropy.unwrap().entropy.as_str()).unwrap();
         let secret_key = &config.registered_keys[current_key];
         let proof = Proof::new(secret_key, &last_entropy).unwrap();
@@ -226,7 +227,7 @@ pub async fn start_cmd(options: StartCommandOptions) {
             .submit_entropy(
                 &proof,
                 Gas::from(total_callback_gas),
-                vec![],
+                request_ids,
                 fee_granter.clone(),
             )
             .await;

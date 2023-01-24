@@ -74,7 +74,7 @@ impl Network {
             },
             gas_info: NetworkGasInfo {
                 denom: "uluna".to_string(),
-                gas_price: 5.0,
+                gas_price: 0.015,
                 gas_adjustment: 1.25,
             },
             deployed_beacon_address: None,

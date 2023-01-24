@@ -239,7 +239,7 @@ pub async fn deploy_beacon(
     pb.set_style(CLITheme::success_spinner());
     pb.set_prefix("✓");
     pb.finish_with_message(format!(
-        "{} {}",
+        "{} {}\n",
         "Mock beacon contract instantiated at address:",
         theme.highlight.apply_to(deployed_address)
     ));
