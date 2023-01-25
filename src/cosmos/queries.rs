@@ -58,7 +58,7 @@ impl Wallet {
     }
 
     pub async fn wait_for_hash(&self, tx_hash: String) -> Result<TxResponse, TxError> {
-        loop {
+        for _ in 0..60 {
             let res = self
                 .network
                 .get(&format!("cosmos/tx/v1beta1/txs/{}", tx_hash))
@@ -68,7 +68,7 @@ impl Wallet {
             let res = res.json::<serde_json::Value>().await?;
 
             if res["code"].as_u64().map_or(false, |c| c == 5) {
-                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                 continue;
             }
 
@@ -80,6 +80,7 @@ impl Wallet {
             }
             return Ok(res);
         }
+        Err(TxError::Timeout)
     }
 }
 

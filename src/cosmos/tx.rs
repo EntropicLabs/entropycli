@@ -23,6 +23,8 @@ pub enum TxError {
     OutOfGas,
     #[error("Transaction failed {:?}", .0)]
     TxFailed(TxResponse),
+    #[error("Timeout while waiting for transaction to be included in a block")]
+    Timeout,
 }
 
 pub const HEIGHT_TIMEOUT_INTERVAL: u32 = 10;

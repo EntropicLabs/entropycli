@@ -159,7 +159,7 @@ pub async fn start_cmd(options: StartCommandOptions) {
         if active_requests.is_err() {
             let message = format!(
                 "Failed to fetch active requests: {}",
-                active_requests.err().unwrap()
+                active_requests.unwrap_err()
             );
             eprintln!("[WARN] {}", message);
             send_webhook_error(message, &webhook_url, &filtered_errors);
@@ -201,7 +201,7 @@ pub async fn start_cmd(options: StartCommandOptions) {
         if last_entropy.is_err() {
             let message = format!(
                 "Failed to fetch last entropy: {}",
-                last_entropy.err().unwrap()
+                last_entropy.unwrap_err()
             );
             eprintln!("[WARN] {}", message);
             send_webhook_error(message, &webhook_url, &filtered_errors);
@@ -232,7 +232,7 @@ pub async fn start_cmd(options: StartCommandOptions) {
             )
             .await;
         if res.is_err() {
-            let message = format!("Failed to submit entropy: {}", res.err().unwrap());
+            let message = format!("Failed to submit entropy: {}", res.unwrap_err());
             eprintln!("[WARN] {}", message);
             send_webhook_error(message, &webhook_url, &filtered_errors);
             continue;
@@ -257,7 +257,7 @@ fn send_webhook(message: String, url: &Option<String>) {
         if let Some(webhook_url) = url {
             let res = webhook::info(webhook_url, message).await;
             if res.is_err() {
-                eprintln!("[WARN] Failed to send webhook: {}", res.err().unwrap());
+                eprintln!("[WARN] Failed to send webhook: {}", res.unwrap_err());
             }
         }
     });
@@ -274,7 +274,7 @@ fn send_webhook_error(message: String, url: &Option<String>, ignored: &Option<Ve
         if let Some(webhook_url) = url {
             let res = webhook::error(webhook_url, message).await;
             if res.is_err() {
-                eprintln!("[WARN] Failed to send webhook: {}", res.err().unwrap());
+                eprintln!("[WARN] Failed to send webhook: {}", res.unwrap_err());
             }
         }
     });
