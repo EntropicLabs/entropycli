@@ -42,7 +42,7 @@ impl Wallet {
     }
 
     pub async fn block_height(&self) -> Result<u32, QueryError> {
-        let response = self.network.get("blocks/latest").await?;
+        let response = self.network.get("cosmos/base/tendermint/v1beta1/blocks/latest").await?;
         let json: serde_json::Value = response.json().await?;
 
         let height = json["block"]["header"]["height"]
